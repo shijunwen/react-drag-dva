@@ -1,0 +1,117 @@
+/* 导入独特字体 - 避免 Inter、Roboto 等通用字体 */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+:root {
+  color-scheme: light dark;
+
+  /* 设计系统色彩变量 */
+  --color-primary: #3b82f6;
+  --color-primary-soft: #60a5fa;
+  --color-accent: #10b981;
+  --color-bg: #0f172a;
+  --color-bg-elevated: #1e293b;
+  --color-bg-container: #ffffff;
+  --color-text: #f8fafc;
+  --color-text-muted: #94a3b8;
+  --color-border: #334155;
+
+  /* 字体 */
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* 动画 */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 400ms ease;
+}
+
+/* 浅色模式 */
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-bg: #f8fafc;
+    --color-bg-elevated: #f1f5f9;
+    --color-text: #0f172a;
+    --color-text-muted: #64748b;
+    --color-border: #e2e8f0;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-display);
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 标题使用独特字体 */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* 代码/数字使用 mono 字体 */
+code, .mono {
+  font-family: var(--font-mono);
+}
+
+/* 微交互：hover 动画 */
+.interactive {
+  transition: transform var(--transition-fast), opacity var(--transition-fast);
+}
+
+.interactive:hover {
+  transform: translateY(-1px);
+}
+
+/* 卡片阴影层次 */
+.card-shadow {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.05),
+    0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* 脉冲动画 - 用于状态指示 */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.pulse {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+/* 入场动画 */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fade-in-up var(--transition-normal) forwards;
+}
+
+/* 列表项交错动画 */
+.stagger-item {
+  animation: fade-in-up var(--transition-normal) forwards;
+  animation-delay: calc(var(--index) * 50ms);
+}

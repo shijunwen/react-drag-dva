@@ -1,0 +1,30 @@
+.hooks-showcase {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  .hooks-header {
+    flex-shrink: 0;
+  }
+
+  .hooks-tabs {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
+    :global(.ant-tabs-content-holder) {
+      flex: 1;
+      overflow: auto;
+    }
+
+    :global(.ant-tabs-content) {
+      height: 100%;
+
+      .ant-tabs-tabpane-active {
+        height: 100%;
+        overflow: auto;
+      }
+    }
+  }
+}
