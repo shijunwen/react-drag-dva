@@ -211,26 +211,30 @@ export default function Canvas({ dndActive }) {
     selectedIdsRef.current = selectedIds;
   }, [canDrag, selectedIds]);
 
-  // 在 InfiniteViewer 根元素上注册原生捕获阶段 wheel 监听：
-  // - dnd-kit 拖拽中时阻止滚轮事件到达 InfiniteViewer 的 onWheel
-  // - 画布拖拽开关关闭时，阻止普通滚轮平移画布（保留 ctrl/meta+滚轮缩放）
+  // 控制 InfiniteViewer 的滚动容器 overflow 属性，当 !canDrag 时禁止原生滚动
   useEffect(() => {
-    const el = viewerRef.current?.getContainer?.();
-    if (!el) return;
-    const handler = (e) => {
-      if (window.__dndActive) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        return;
-      }
-      // 画布拖拽关闭时，阻止普通滚轮平移（保留 ctrl/meta+缩放）
-      if (!canDragRef.current && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault();
-      }
+    if (!viewerRef.current) return;
+    const viewer = viewerRef.current;
+
+    const getWrapper = () => {
+      // 尝试多种可能的属性名获取 InfiniteViewer 的滚动容器
+      return viewer.wrapperElement || viewer.wrapper ||
+             (typeof viewer.getWrapper === "function" ? viewer.getWrapper() : null) ||
+             (typeof viewer.getContainer === "function" ? viewer.getContainer() : null) ||
+             viewer;
     };
-    el.addEventListener("wheel", handler, { capture: true, passive: false });
-    return () => el.removeEventListener("wheel", handler, { capture: true });
-  }, []);
+
+    const wrapper = getWrapper();
+    if (!wrapper) return;
+
+    if (canDrag) {
+      // 开启平移时，恢复 auto overflow（InfiniteViewer 默认）
+      wrapper.style.overflow = "auto";
+    } else {
+      // 关闭平移时，设置 hidden overflow，彻底阻止原生滚动
+      wrapper.style.overflow = "hidden";
+    }
+  }, [canDrag, viewerRef]);
 
   // 调色板拖拽进行中：用全局 pointermove 实时命中测试画板并高亮。
   // 不用 dnd-kit 的 isOver —— 画板处于 InfiniteViewer 的 zoom/pan 变换内，
@@ -515,7 +519,7 @@ export default function Canvas({ dndActive }) {
           <InfiniteViewer
             ref={viewerRef}
             className={`${styles.viewer} ${canDrag ? styles.grabbing : ""}`}
-            useMouseDrag
+            useMouseDrag={canDrag}
             usePinch
             useWheelPinch
             useWheelScroll={canDrag}
