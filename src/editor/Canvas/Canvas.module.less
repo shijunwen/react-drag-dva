@@ -1,0 +1,176 @@
+.canvas {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  /* 画布外区域用更深的背景色，与画布形成对比 */
+  background: var(--color-bg-canvas);
+}
+
+.viewer {
+  width: 100%;
+  height: 100%;
+}
+
+.grabbing {
+  /* 空格按下时，画布区域显示抓手光标 */
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.board {
+  position: relative;
+  /* 尺寸由 JS inline style 设置（canvasWidth × canvasHeight） */
+  /* 画布网格 */
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-color: var(--color-bg);
+  /* 明显的阴影边框，区分画布内外 */
+  box-shadow:
+    0 0 0 1px var(--color-border),
+    0 8px 32px rgba(0, 0, 0, 0.4);
+  border-radius: 4px;
+}
+
+.element {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: 1px solid transparent;
+  outline-offset: 0;
+  transition: outline-color var(--transition-fast);
+}
+
+/* 顶层元素：绝对定位 */
+.element:not(.inContainer) {
+  position: absolute;
+}
+
+/* 容器内元素：相对定位，flex 子项 */
+.element.inContainer {
+  position: relative;
+}
+
+.selected {
+  outline: 2px solid var(--color-primary);
+}
+
+/* 合并成一个块的元素：虚线高亮 */
+.grouped {
+  outline: 2px dashed var(--color-accent);
+}
+
+.text {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--color-text);
+  text-align: left;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.shape {
+  width: 100%;
+  height: 100%;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.button {
+  width: 100%;
+  height: 100%;
+  padding: 0 16px;
+  border: none;
+  border-radius: 6px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* 缩放控制条 */
+.zoomBar {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  user-select: none;
+}
+
+.sizeGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+}
+
+.sizeSep {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: var(--color-border);
+}
+
+.zoomBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.zoomLabel {
+  min-width: 48px;
+  height: 28px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}

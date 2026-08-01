@@ -1,37 +1,5 @@
-:root {
-  color-scheme: light dark;
-
-  /* 设计系统色彩变量 */
-  --color-primary: #3b82f6;
-  --color-primary-soft: #60a5fa;
-  --color-accent: #10b981;
-  --color-bg: #0f172a;
-  --color-bg-elevated: #1e293b;
-  --color-bg-container: #ffffff;
-  --color-text: #f8fafc;
-  --color-text-muted: #94a3b8;
-  --color-border: #334155;
-
-  /* 字体 */
-  --font-display: 'Space Grotesk', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-
-  /* 动画 */
-  --transition-fast: 150ms ease;
-  --transition-normal: 250ms ease;
-  --transition-slow: 400ms ease;
-}
-
-/* 浅色模式 */
-@media (prefers-color-scheme: light) {
-  :root {
-    --color-bg: #f8fafc;
-    --color-bg-elevated: #f1f5f9;
-    --color-text: #0f172a;
-    --color-text-muted: #64748b;
-    --color-border: #e2e8f0;
-  }
-}
+/* 设计 token(色彩/字体/动画变量)抽离至 editor/tokens.less,库与 demo 共用 */
+@import "../editor/tokens.less";
 
 * {
   box-sizing: border-box;
@@ -111,25 +79,4 @@ code, .mono {
 .stagger-item {
   animation: fade-in-up var(--transition-normal) forwards;
   animation-delay: calc(var(--index) * 50ms);
-}
-
-/* 拖拽排序列表样式 */
-.draggable_item {
-  padding: 12px 16px;
-  margin: 8px 0;
-  background: var(--color-bg-container);
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  cursor: grab;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
-  user-select: none;
-}
-
-.draggable_item:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.draggable_item:active {
-  cursor: grabbing;
 }

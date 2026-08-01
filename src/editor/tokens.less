@@ -1,0 +1,43 @@
+/**
+ * 编辑器设计 token(色彩/字体/动画)。
+ * 仅 :root 变量,不含全局 reset,避免作为库污染消费方样式。
+ * - 库构建:src/index.js 引入本文件,纳入 dist/style.css。
+ * - demo:src/styles/index.less @import 本文件后追加全局 reset。
+ * 编辑器各 .module.less 通过 var(--color-*) 引用此处定义。
+ */
+:root {
+  color-scheme: light dark;
+
+  /* 设计系统色彩变量 */
+  --color-primary: #3b82f6;
+  --color-primary-soft: #60a5fa;
+  --color-accent: #10b981;
+  --color-bg: #0f172a;
+  --color-bg-elevated: #1e293b;
+  --color-bg-container: #ffffff;
+  --color-bg-canvas: #0a0f1d;
+  --color-text: #f8fafc;
+  --color-text-muted: #94a3b8;
+  --color-border: #334155;
+
+  /* 字体 */
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* 动画 */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 400ms ease;
+}
+
+/* 浅色模式 */
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-bg: #f8fafc;
+    --color-bg-elevated: #f1f5f9;
+    --color-bg-canvas: #e2e8f0;
+    --color-text: #0f172a;
+    --color-text-muted: #64748b;
+    --color-border: #e2e8f0;
+  }
+}
