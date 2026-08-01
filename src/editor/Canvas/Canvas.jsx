@@ -96,6 +96,10 @@ export default function Canvas({ dndActive }) {
   // 拖放过程中指针是否在画布板上方（可靠的手动命中测试）
   const [pointerOverBoard, setPointerOverBoard] = useState(false);
 
+  // 先获取 state，再声明 ref（避免初始化顺序问题）
+  const { elements, selectedIds, select, toggleSelect, clearSelection } =
+    useEditor();
+
   const canDrag = (panEnabled || spaceHeld) && !dndActive;
   // 用 ref 同步存储 canDrag，避免事件回调闭包读到过期的 state
   const canDragRef = useRef(canDrag);
@@ -114,9 +118,6 @@ export default function Canvas({ dndActive }) {
   const canvasWrapRef = useRef(null);
   // 挂载后将画布滚动到视口中心
   const centeredRef = useRef(false);
-
-  const { elements, selectedIds, select, toggleSelect, clearSelection } =
-    useEditor();
   const { setNodeRef } = useDroppable({ id: "canvas-board" });
   // 只订阅渲染实际用到的字段：滚动(scrollLeft/Top)不在此处订阅，
   // 故平移/滚动不再触发 Canvas 重渲染（标尺同步改由 store.sub 驱动，见下）。
