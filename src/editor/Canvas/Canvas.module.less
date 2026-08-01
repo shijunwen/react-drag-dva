@@ -5,6 +5,125 @@
   overflow: hidden;
   /* 画布外区域用更深的背景色，与画布形成对比 */
   background: var(--color-bg-canvas);
+  display: flex;
+  flex-direction: column;
+}
+
+/* 辅助线覆盖层 - 确保在最上层 */
+.guidesOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 仅标尺本体需要接收事件（拖拽创建/移动辅助线）；
+   .rulerArea 是填满整个画布区域的布局容器，必须保持 none，
+   否则会盖在画布之上拦截 pointerdown，导致元素无法选中/拖拽。 */
+.guidesOverlay .rulerTop,
+.guidesOverlay .rulerLeft,
+.guidesOverlay .rulerContent {
+  pointer-events: auto;
+}
+
+/* 顶部标尺容器 */
+.rulerTop {
+  display: flex;
+  height: 32px;
+  flex-shrink: 0;
+  background: var(--ruler-bg);
+  border-bottom: 1px solid var(--color-border);
+  position: relative;
+}
+
+.rulerCorner {
+  width: 32px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--color-border);
+  background: var(--ruler-bg);
+}
+
+.rulerArea {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 左侧标尺 */
+.rulerLeft {
+  width: 32px;
+  flex-shrink: 0;
+  background: var(--ruler-bg);
+  border-right: 1px solid var(--color-border);
+  position: relative;
+}
+
+.rulerContent {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  user-select: none;
+}
+
+/* Guides 组件样式 */
+.rulerContent :global(.scena-guides-manager) {
+  position: relative;
+  overflow: visible !important;
+  width: 100%;
+  height: 100%;
+}
+
+.rulerContent :global(.scena-guides-guides) {
+  position: absolute;
+  overflow: visible !important;
+  z-index: 100;
+}
+
+/* 水平标尺的辅助线向下延伸到整个画布区域 */
+.rulerTop :global(.scena-guides-guides) {
+  top: 0;
+  left: 0;
+  height: 200vh;
+}
+
+/* 垂直标尺的辅助线向右延伸到整个画布区域 */
+.rulerLeft :global(.scena-guides-guides) {
+  top: 0;
+  left: 0;
+  width: 200vw;
+}
+
+/* 辅助线本身的样式 - 确保足够长 */
+.rulerContent :global(.scena-guides-guide) {
+  background: var(--ruler-indicator, #1890ff);
+
+  &[data-type="horizontal"] {
+    width: 200vw !important;
+    left: -100vw !important;
+  }
+
+  &[data-type="vertical"] {
+    height: 200vh !important;
+    top: -100vh !important;
+  }
+}
+
+.viewerArea {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: var(--space-5);
+  padding-top: var(--space-5);
+  position: relative;
 }
 
 .viewer {
@@ -24,17 +143,62 @@
 .board {
   position: relative;
   /* 尺寸由 JS inline style 设置（canvasWidth × canvasHeight） */
-  /* 画布网格 */
+  /* 工程制图网格:次刻度 20px + 主刻度 100px，制图工坊签名 */
   background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 20px 20px;
-  background-color: var(--color-bg);
-  /* 明显的阴影边框，区分画布内外 */
+    linear-gradient(to right, var(--grid-minor) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-minor) 1px, transparent 1px),
+    linear-gradient(to right, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-major) 1px, transparent 1px);
+  background-size:
+    20px 20px,
+    20px 20px,
+    100px 100px,
+    100px 100px;
+  background-color: var(--color-bg-elevated);
+  /* 阴影边框，画布如纸张托起于工作区 */
   box-shadow:
     0 0 0 1px var(--color-border),
-    0 8px 32px rgba(0, 0, 0, 0.4);
-  border-radius: 4px;
+    var(--shadow-lg);
+  border-radius: var(--radius-lg);
+  transition: background-size var(--transition-slow), box-shadow var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
+
+  &:hover {
+    background-image:
+      linear-gradient(to right, var(--grid-minor) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-minor) 1px, transparent 1px),
+      linear-gradient(to right, var(--grid-major-hover) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-major-hover) 1px, transparent 1px);
+  }
+
+  &.over {
+    /* 拖拽悬停高亮：主色网格强化"放置区" + 内发光，严格收敛在画布板边界内，
+       外发光仅 2px 边框，不向画布外的标尺/工作区扩散 */
+    background-image:
+      linear-gradient(to right, rgba(var(--color-primary-rgb), 0.22) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(var(--color-primary-rgb), 0.22) 1px, transparent 1px),
+      linear-gradient(to right, var(--color-primary) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--color-primary) 1px, transparent 1px);
+    background-color: rgba(var(--color-primary-rgb), 0.03);
+    /* 内发光呼吸：表明画布正在接收拖入，吸引注意力但不外溢 */
+    animation: canvas-drop-glow 1.8s ease-in-out infinite;
+  }
+}
+
+@keyframes canvas-drop-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 0 2px var(--color-primary),
+      inset 0 0 0 1px rgba(var(--color-primary-rgb), 0.3),
+      inset 0 0 28px rgba(var(--color-primary-rgb), 0.08),
+      var(--shadow-lg);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px var(--color-primary),
+      inset 0 0 0 1px rgba(var(--color-primary-rgb), 0.45),
+      inset 0 0 44px rgba(var(--color-primary-rgb), 0.15),
+      var(--shadow-lg);
+  }
 }
 
 .element {
@@ -59,11 +223,13 @@
 
 .selected {
   outline: 2px solid var(--color-primary);
+  box-shadow: 0 0 0 1px rgba(var(--color-primary-rgb), 0.15);
 }
 
 /* 合并成一个块的元素：虚线高亮 */
 .grouped {
   outline: 2px dashed var(--color-accent);
+  box-shadow: 0 0 0 1px rgba(var(--color-accent-rgb), 0.15);
 }
 
 .text {
@@ -105,25 +271,36 @@
 /* 缩放控制条 */
 .zoomBar {
   position: absolute;
-  right: 16px;
-  bottom: 16px;
+  right: 20px;
+  bottom: 20px;
   z-index: 100;
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 4px;
+  padding: 6px 10px;
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
   user-select: none;
 }
 
 .sizeGroup {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   padding: 0 4px;
+}
+
+.posLabel {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.posValue {
+  color: var(--color-text);
 }
 
 .sizeSep {
@@ -134,7 +311,13 @@
 .divider {
   width: 1px;
   height: 20px;
-  margin: 0 4px;
+  margin: 0 6px;
+  background: var(--color-border);
+}
+
+.dividerInline {
+  width: 1px;
+  height: 16px;
   background: var(--color-border);
 }
 
@@ -146,31 +329,45 @@
   height: 28px;
   padding: 0;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--color-text);
   font-size: 18px;
   line-height: 1;
   cursor: pointer;
+  transition: background var(--transition-fast);
 
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.05);
+  }
+}
+
+/* 画布拖拽开关激活态 */
+.zoomBtnActive {
+  background: rgba(var(--color-primary-rgb), 0.12);
+  color: var(--color-primary);
+
+  &:hover {
+    background: rgba(var(--color-primary-rgb), 0.18);
   }
 }
 
 .zoomLabel {
-  min-width: 48px;
+  min-width: 52px;
   height: 28px;
   padding: 0 6px;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--color-text);
   font-size: 12px;
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
+  text-align: center;
+  transition: background var(--transition-fast);
 
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.05);
   }
 }

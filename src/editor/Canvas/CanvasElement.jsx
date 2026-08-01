@@ -1,17 +1,16 @@
-import { memo } from "react";
+import { memo, useCallback } from "react";
 import { ELEMENT_TYPES, getDef } from "../elements";
 import ContainerBox from "./ContainerBox";
 import styles from "./Canvas.module.less";
 
 /** 渲染元素内部内容:基础类型走注册表 Content,容器特判(ContainerBox) */
-function renderContent(el, elementRefs, registerRef, sortState) {
+function renderContent(el, elementRefs, registerRef) {
   if (el.type === ELEMENT_TYPES.CONTAINER) {
     return (
       <ContainerBox
         el={el}
         elementRefs={elementRefs}
         registerRef={registerRef}
-        sortState={sortState}
       />
     );
   }
@@ -31,7 +30,6 @@ const CanvasElement = memo(function CanvasElement({
   registerRef,
   elementRefs,
   isInContainer = false,
-  sortState,
 }) {
   const unit = el.unit || "px";
   // x/width 统一按 % 渲染（px 时换算），y/height 用 px
@@ -51,9 +49,13 @@ const CanvasElement = memo(function CanvasElement({
       }
     : baseStyle;
 
+  // 稳定 ref 回调:避免每次 render 内联新函数导致 React 先 ref(null) 再 ref(node),
+  // 中间 elementRefs 短暂为空,moveable updateRect 会读到 null target(offsetWidth 报错)。
+  const setRef = useCallback((node) => registerRef(el.id, node), [el.id, registerRef]);
+
   return (
     <div
-      ref={(node) => registerRef(el.id, node)}
+      ref={setRef}
       data-id={el.id}
       data-in-container={isInContainer ? "true" : "false"}
       data-selected={selected ? "true" : "false"}
@@ -65,7 +67,7 @@ const CanvasElement = memo(function CanvasElement({
       ].join(" ")}
       style={absoluteStyle}
     >
-      {renderContent(el, elementRefs, registerRef, sortState)}
+      {renderContent(el, elementRefs, registerRef)}
     </div>
   );
 });

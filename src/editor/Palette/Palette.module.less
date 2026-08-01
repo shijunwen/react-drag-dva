@@ -2,23 +2,25 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 12px 24px;
+  padding: 10px var(--space-5);
   background: var(--color-bg-elevated);
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
 
 .title {
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: 11px;
   font-weight: 600;
-  color: var(--color-text-muted);
-  letter-spacing: 0.04em;
+  color: var(--color-text-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
 .list {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -26,27 +28,39 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
+  padding: 8px 12px;
   background: var(--color-bg-container);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-display);
+  font-size: 13px;
   color: var(--color-text);
   cursor: grab;
   user-select: none;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast),
+    transform var(--transition-fast), background var(--transition-fast);
 
   &:hover {
     border-color: var(--color-primary);
-    box-shadow: 0 2px 8px rgba(88, 166, 255, 0.15);
+    background: rgba(var(--color-primary-rgb), 0.03);
+    box-shadow: var(--shadow-glow);
+    transform: translateY(-1px);
   }
 
   &:active {
     cursor: grabbing;
+    transform: translateY(0);
   }
 }
 
 .icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  background: rgba(30, 41, 59, 0.04);
+  color: var(--color-text-muted);
   font-size: 16px;
-  color: var(--color-primary);
 }

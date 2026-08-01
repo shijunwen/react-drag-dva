@@ -20,7 +20,7 @@ A **visual drag-and-drop editor**: drag component types from a top palette onto 
 
 ### State (Jotai) — the single source of truth
 
-All editor state lives in `src/atoms/editor.js` (re-exported via `src/atoms/index.js`). **All mutations go through write-atoms here — never mutate `elementsAtom` directly elsewhere.**
+All editor state lives in `src/atoms/`, split by concern (`base`/`elements`/`history`/`selection`/`viewport`/`preview`) and re-exported via `src/atoms/index.js`. **All mutations go through write-atoms here — never mutate `elementsAtom` directly elsewhere.**
 
 - `elementsAtom` — flat array of **all** elements (top-level + container children, distinguished by `parentId`).
 - Element shape: `{ id, type, x, y, width, height, rotation, groupId, parentId, z, props }`.
@@ -63,7 +63,7 @@ A container is an element `type: container` with `props: {}`. `ContainerBox`:
 
 ### Styling & config
 
-- CSS Modules via co-located `.module.less`; global tokens as CSS custom properties in `src/styles/index.less` (light/dark via `prefers-color-scheme`). antd theme token set in `main.jsx` (primary `#58a6ff`, zh_CN locale).
+- CSS Modules via co-located `.module.less`; global tokens as CSS custom properties in `src/styles/index.less` (light/dark via `prefers-color-scheme`). antd theme token set in `examples/main.jsx` (primary `#58a6ff`, zh_CN locale).
 - Path alias `@` → `src/` (in `vite.config.js` and `.eslintrc.cjs`).
 - `src/editor/elements/`: element-type **registry** (component-library style). Each type is a self-contained definition `{ type, label, icon, defaults, Content, Props }` (one file per type: `Text.jsx`, `Rect.jsx`, ...; `Container.js` has `Content: null`/`Props: null` since it's rendered specially). `index.js` aggregates them and derives `ELEMENT_TYPES`, `PALETTE_ITEMS`, `PALETTE_ITEM_MAP`, `ELEMENT_ICONS`, `getDef(type)`. `Content`/`Props` are module-level components that receive `styles` from the caller (CanvasElement/Preview inject their own CSS module; PropertiesPanel injects panel styles), so editor and preview share one renderer per type. **Adding a type = one new file + one line in `index.js`** — no switch statements to touch.
 - `src/editor/constants.js`: canvas/zoom/snap config only (`UNIT`, `CANVAS_WIDTH/HEIGHT`, `MIN_ZOOM`/`MAX_ZOOM`/`ZOOM_STEP`, `SNAP_THRESHOLD`). Element-type metadata lives in `elements/`, not here.

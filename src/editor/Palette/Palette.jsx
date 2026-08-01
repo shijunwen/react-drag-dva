@@ -1,17 +1,19 @@
+import { memo, useMemo } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { PALETTE_ITEMS, ELEMENT_ICONS } from "../elements";
 import styles from "./Palette.module.less";
 
-function PaletteItem({ item }) {
+// 提升到模块作用域：避免每次 render 产生新 style 引用
+const ITEM_STYLE_NORMAL = { opacity: 1 };
+const ITEM_STYLE_DRAGGING = { opacity: 0.3 };
+
+const PaletteItem = memo(function PaletteItem({ item }) {
+  // data 稳定化：item.type 不变时引用不变，避免 useDraggable 因 data 变化重置
+  const data = useMemo(() => ({ type: item.type, source: "palette" }), [item.type]);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `palette-${item.type}`,
-    data: { type: item.type, source: "palette" },
+    data,
   });
-
-  // 使用 DragOverlay 时不对源节点施加 transform，避免拖拽时重影 & 松手回弹
-  const style = {
-    opacity: isDragging ? 0.3 : 1,
-  };
 
   const Icon = ELEMENT_ICONS[item.type];
 
@@ -19,7 +21,7 @@ function PaletteItem({ item }) {
     <button
       ref={setNodeRef}
       className={styles.item}
-      style={style}
+      style={isDragging ? ITEM_STYLE_DRAGGING : ITEM_STYLE_NORMAL}
       {...listeners}
       {...attributes}
     >
@@ -27,7 +29,7 @@ function PaletteItem({ item }) {
       <span>{item.label}</span>
     </button>
   );
-}
+});
 
 export default function Palette() {
   return (

@@ -5,6 +5,8 @@ import Editor from "@/editor/Editor";
 
 const { Content } = Layout;
 
+const LAYOUT_STYLE = { height: "100vh", overflow: "hidden" };
+
 export default function App() {
   const { token } = theme.useToken();
 
@@ -13,7 +15,7 @@ export default function App() {
   });
 
   return (
-    <Layout style={{ height: "100vh", overflow: "hidden" }}>
+    <Layout style={LAYOUT_STYLE}>
       <AppHeader />
       <Content style={{ flex: 1, overflow: "hidden", background: token.colorBg }}>
         <Editor />

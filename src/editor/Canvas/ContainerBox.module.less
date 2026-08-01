@@ -9,16 +9,39 @@
 .visual {
   position: absolute;
   inset: 0;
-  border: 1.5px dashed var(--color-primary);
-  border-radius: 8px;
-  background: rgba(88, 166, 255, 0.06);
+  border: 1.5px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: transparent;
   pointer-events: none;
-  transition: border-color var(--transition-fast), background var(--transition-fast);
+  transition: border-color var(--transition-fast), border-style var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
 }
 
+/* 拖拽悬停高亮：palette(dnd-kit isOver) 与画布元素拖拽(dragOverContainerIdAtom)共用 */
 .over .visual {
-  border-color: var(--color-accent);
-  background: rgba(16, 185, 129, 0.1);
+  border-color: var(--color-primary);
+  border-style: solid;
+  border-width: 2px;
+  background: rgba(var(--color-primary-rgb), 0.06);
+  box-shadow:
+    0 0 0 1px var(--color-primary),
+    0 0 0 8px rgba(var(--color-primary-rgb), 0.08),
+    0 0 0 1px rgba(var(--color-primary-rgb), 0.35) inset;
+  animation: pulse-border 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px var(--color-primary),
+      0 0 0 8px rgba(var(--color-primary-rgb), 0.08),
+      0 0 0 1px rgba(var(--color-primary-rgb), 0.35) inset;
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px var(--color-primary),
+      0 0 0 12px rgba(var(--color-primary-rgb), 0.12),
+      0 0 0 1px rgba(var(--color-primary-rgb), 0.35) inset;
+  }
 }
 
 .header {
@@ -40,10 +63,12 @@
 }
 
 .title {
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
   font-weight: 600;
   color: var(--color-primary);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .iconBtn {
@@ -59,9 +84,10 @@
   color: var(--color-text-muted);
   font-size: 12px;
   cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
 
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.05);
     color: var(--color-text);
   }
 }
@@ -120,7 +146,7 @@
   width: 20px;
   height: 20px;
   background: var(--color-primary);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: grab;
   display: flex;
   align-items: center;

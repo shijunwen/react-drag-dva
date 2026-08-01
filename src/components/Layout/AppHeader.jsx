@@ -1,5 +1,5 @@
-import { memo } from "react";
-import { Layout, Button, Space, Divider, Dropdown, Popconfirm, theme, Tooltip } from "antd";
+import { memo, useCallback, useMemo } from "react";
+import { Layout, Button, Space, Divider, Dropdown, Popconfirm, Tooltip } from "antd";
 import {
   DeleteOutlined,
   GroupOutlined,
@@ -14,6 +14,7 @@ import {
 import { useAtomValue, useSetAtom } from "jotai";
 import { useEditor } from "@/editor/useEditor";
 import { previewModeAtom, setPreviewModeAtom } from "@/atoms";
+import styles from "./AppHeader.module.less";
 
 const { Header } = Layout;
 
@@ -40,7 +41,6 @@ function AppHeaderInner() {
     undo,
     redo,
   } = useEditor();
-  const { token } = theme.useToken();
   const previewMode = useAtomValue(previewModeAtom);
   const setPreviewMode = useSetAtom(setPreviewModeAtom);
 
@@ -48,88 +48,114 @@ function AppHeaderInner() {
   const canUngroup = selectedElements.some((el) => el.groupId);
   const canAlign = selectedIds.length >= 2;
 
-  return (
-    <Header
-      style={{
-        height: 56,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "0 24px",
-        background: token.colorBgContainer,
-        borderBottom: `1px solid ${token.colorBorderSecondary}`,
-        flexShrink: 0,
-      }}
-    >
-      <span style={{ fontSize: 16, fontWeight: 600 }}>拖拽编辑器</span>
+  // 对齐下拉菜单：稳定引用，避免每次 render 传入新对象
+  const handleAlign = useCallback(({ key }) => alignSelected(key), [alignSelected]);
+  const alignMenu = useMemo(
+    () => ({ items: ALIGN_ITEMS, onClick: handleAlign }),
+    [handleAlign],
+  );
 
-      <Space size={4}>
-        <Tooltip title={previewMode ? "返回编辑" : "预览"}>
+  return (
+    <Header className={styles.header}>
+      <div className={styles.brand}>
+        <span className={styles.brandIndicator} />
+        <span className={styles.brandName}>精密制图工坊</span>
+        <span className={styles.brandSub}>Drafting Atelier</span>
+      </div>
+
+      <Space size="small" className={styles.tools}>
+        <Tooltip title={previewMode ? "返回编辑" : "预览"} placement="bottom">
           <Button
             type={previewMode ? "primary" : "text"}
             icon={previewMode ? <EditOutlined /> : <EyeOutlined />}
             onClick={() => setPreviewMode(!previewMode)}
+            className={styles.toolBtn}
           >
             {previewMode ? "编辑" : "预览"}
           </Button>
         </Tooltip>
 
-        <Divider type="vertical" style={{ margin: "0 4px" }} />
-
         {!previewMode && (
           <>
-            <Tooltip title="撤销">
-              <Button type="text" icon={<UndoOutlined />} disabled={!canUndo} onClick={undo} />
+            <Divider orientation="vertical" className={styles.divider} />
+
+            <Tooltip title="撤销" placement="bottom">
+              <Button
+                type="text"
+                icon={<UndoOutlined />}
+                disabled={!canUndo}
+                onClick={undo}
+                className={styles.iconBtn}
+              />
             </Tooltip>
-            <Tooltip title="重做">
-              <Button type="text" icon={<RedoOutlined />} disabled={!canRedo} onClick={redo} />
+            <Tooltip title="重做" placement="bottom">
+              <Button
+                type="text"
+                icon={<RedoOutlined />}
+                disabled={!canRedo}
+                onClick={redo}
+                className={styles.iconBtn}
+              />
             </Tooltip>
 
-            <Divider type="vertical" style={{ margin: "0 4px" }} />
+            <Divider orientation="vertical" className={styles.divider} />
 
-            <Tooltip title="合并成一个块">
+            <Tooltip title="合并成一个块" placement="bottom">
               <Button
                 type="text"
                 icon={<GroupOutlined />}
                 disabled={!canGroup}
                 onClick={groupSelected}
+                className={styles.iconBtn}
               />
             </Tooltip>
-            <Tooltip title="取消合并">
+            <Tooltip title="取消合并" placement="bottom">
               <Button
                 type="text"
                 icon={<UngroupOutlined />}
                 disabled={!canUngroup}
                 onClick={ungroupSelected}
+                className={styles.iconBtn}
               />
             </Tooltip>
 
             <Dropdown
-              menu={{
-                items: ALIGN_ITEMS,
-                onClick: ({ key }) => alignSelected(key),
-              }}
+              menu={alignMenu}
               disabled={!canAlign}
+              placement="bottom"
             >
-              <Button type="text" icon={<AlignLeftOutlined />} disabled={!canAlign}>
+              <Button
+                type="text"
+                icon={<AlignLeftOutlined />}
+                disabled={!canAlign}
+                className={styles.iconBtn}
+              >
                 对齐
               </Button>
             </Dropdown>
 
-            <Divider type="vertical" style={{ margin: "0 4px" }} />
+            <Divider orientation="vertical" className={styles.divider} />
 
-            <Tooltip title="删除选中">
+            <Tooltip title="删除选中" placement="bottom">
               <Button
                 type="text"
                 danger
                 icon={<DeleteOutlined />}
                 disabled={!selectedIds.length}
                 onClick={deleteSelected}
+                className={styles.iconBtn}
               />
             </Tooltip>
 
-            <Popconfirm title="确定清空画布？" onConfirm={clearCanvas} okText="清空" cancelText="取消">
-              <Button type="text" icon={<ClearOutlined />}>清空</Button>
+            <Popconfirm
+              title="确定清空画布？"
+              onConfirm={clearCanvas}
+              okText="清空"
+              cancelText="取消"
+            >
+              <Button type="text" icon={<ClearOutlined />} className={styles.iconBtn}>
+                清空
+              </Button>
             </Popconfirm>
           </>
         )}

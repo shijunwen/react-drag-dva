@@ -1,6 +1,6 @@
 import { memo, useMemo } from "react";
 import { useAtomValue } from "jotai";
-import { elementsAtom, viewportAtom } from "@/atoms";
+import { elementsAtom, canvasWidthAtom, canvasHeightAtom } from "@/atoms";
 import { ELEMENT_TYPES, getDef } from "./elements";
 import { UNIT } from "./constants";
 import { toPercent } from "./utils";
@@ -18,12 +18,12 @@ function renderContent(el) {
 /** 预览态容器：渲染子元素（流式布局，无排序/拖拽） */
 function PreviewContainer({ el }) {
   const allElements = useAtomValue(elementsAtom);
-  const { canvasWidth } = useAtomValue(viewportAtom);
+  const canvasWidth = useAtomValue(canvasWidthAtom);
   const children = useMemo(
     () =>
       allElements
         .filter((c) => (c.parentId ?? null) === el.id)
-        .sort((a, b) => (a.z || 0) - (b.z || 0)),
+        .toSorted((a, b) => (a.z || 0) - (b.z || 0)),
     [allElements, el.id]
   );
   return (
@@ -73,10 +73,11 @@ const PreviewElement = memo(function PreviewElement({ el, canvasWidth }) {
  */
 function PreviewInner() {
   const elements = useAtomValue(elementsAtom);
-  const { canvasWidth, canvasHeight } = useAtomValue(viewportAtom);
+  const canvasWidth = useAtomValue(canvasWidthAtom);
+  const canvasHeight = useAtomValue(canvasHeightAtom);
 
   const topLevel = useMemo(
-    () => elements.filter((el) => !el.parentId).sort((a, b) => (a.z || 0) - (b.z || 0)),
+    () => elements.filter((el) => !el.parentId).toSorted((a, b) => (a.z || 0) - (b.z || 0)),
     [elements]
   );
 

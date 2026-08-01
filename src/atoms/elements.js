@@ -1,57 +1,18 @@
 import { atom } from "jotai";
-import { createElement, patchElement, patchElements, expandGroupSelection, getBounds, reorderContainerChildren } from "@/editor/utils";
+import { elementsAtom } from "./base";
+import { selectedIdsAtom } from "./selection";
+import { beginChangeAtom, pastAtom, futureAtom } from "./history";
+import { viewportAtom } from "./viewport";
+import {
+  createElement,
+  patchElement,
+  patchElements,
+  getBounds,
+  reorderContainerChildren,
+  buildChildrenMap,
+  wouldCreateCycle,
+} from "@/editor/utils";
 import { UNIT } from "@/editor/constants";
-
-const HISTORY_LIMIT = 50;
-
-/** 画布内全部元素 */
-export const elementsAtom = atom([]);
-
-/** 当前选中的元素 id 列表（支持多选 / 分组） */
-export const selectedIdsAtom = atom([]);
-
-/** 撤销 / 重做栈（保存元素快照） */
-export const pastAtom = atom([]);
-export const futureAtom = atom([]);
-
-/** 画布视口状态（缩放 + 平移 + 画布尺寸），由 InfiniteViewer 驱动 */
-export const viewportAtom = atom({
-  zoom: 1,
-  scrollLeft: 0,
-  scrollTop: 0,
-  canvasWidth: 1200,
-  canvasHeight: 720,
-});
-export const setViewportAtom = atom(null, (get, set, patch) => {
-  set(viewportAtom, { ...get(viewportAtom), ...patch });
-});
-export const setZoomAtom = atom(null, (get, set, zoom) => {
-  set(viewportAtom, { ...get(viewportAtom), zoom });
-});
-export const setCanvasSizeAtom = atom(null, (get, set, { width, height }) => {
-  set(viewportAtom, { ...get(viewportAtom), canvasWidth: width, canvasHeight: height });
-});
-
-/** 预览模式开关 */
-export const previewModeAtom = atom(false);
-export const setPreviewModeAtom = atom(null, (get, set, value) => {
-  set(previewModeAtom, value);
-});
-
-/** 派生：当前选中的元素对象列表 */
-export const selectedElementsAtom = atom((get) => {
-  const els = get(elementsAtom);
-  const ids = get(selectedIdsAtom);
-  const idSet = new Set(ids);
-  return els.filter((el) => idSet.has(el.id));
-});
-
-/** 在一次离散变更前快照当前状态（一次手势 = 一条撤销记录） */
-export const beginChangeAtom = atom(null, (get, set) => {
-  const past = get(pastAtom);
-  set(pastAtom, [...past, get(elementsAtom)].slice(-HISTORY_LIMIT));
-  set(futureAtom, []);
-});
 
 /* ----------------------------- 元素增删改 ----------------------------- */
 
@@ -117,38 +78,22 @@ export const deleteSelectedAtom = atom(null, (get, set) => {
   if (!ids.length) return;
   set(beginChangeAtom);
   const els = get(elementsAtom);
+  const childrenMap = buildChildrenMap(els);
   const toDelete = new Set(ids);
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const e of els) {
-      if (e.parentId && toDelete.has(e.parentId) && !toDelete.has(e.id)) {
-        toDelete.add(e.id);
-        changed = true;
+  const stack = [...ids];
+  while (stack.length) {
+    const children = childrenMap.get(stack.pop());
+    if (!children) continue;
+    for (const c of children) {
+      if (!toDelete.has(c.id)) {
+        toDelete.add(c.id);
+        stack.push(c.id);
       }
     }
   }
   set(elementsAtom, (list) => list.filter((el) => !toDelete.has(el.id)));
   set(selectedIdsAtom, []);
 });
-
-/* ----------------------------- 选择 ----------------------------- */
-
-/** 设置选中（已自动展开到同组元素） */
-export const selectAtom = atom(null, (get, set, ids) => {
-  const els = get(elementsAtom);
-  set(selectedIdsAtom, expandGroupSelection(els, ids));
-});
-
-/** 切换选中（Shift 多选，自动展开同组） */
-export const toggleSelectAtom = atom(null, (get, set, id) => {
-  const els = get(elementsAtom);
-  const cur = get(selectedIdsAtom);
-  const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
-  set(selectedIdsAtom, expandGroupSelection(els, next));
-});
-
-export const clearSelectionAtom = atom(null, (get, set) => set(selectedIdsAtom, []));
 
 /* ----------------------------- 分组 / 合并 ----------------------------- */
 
@@ -201,35 +146,15 @@ export const alignSelectedAtom = atom(null, (get, set, dir) => {
   const handler = ALIGN_HANDLERS[dir];
   if (!handler) return;
   set(beginChangeAtom);
+  // handler(bounds) 仅依赖一次计算的 bounds，提前算一次即可
+  const patch = handler(bounds);
+  const key = "x" in patch ? "x" : "y";
   set(elementsAtom, (list) =>
-    list.map((el) => {
-      if (!idSet.has(el.id)) return el;
-      const patch = handler(bounds);
-      if ("x" in patch) return { ...el, x: patch.x };
-      return { ...el, y: patch.y };
-    })
+    list.map((el) => (idSet.has(el.id) ? { ...el, [key]: patch[key] } : el))
   );
 });
 
-/* ----------------------------- 历史 ----------------------------- */
-
-export const undoAtom = atom(null, (get, set) => {
-  const past = get(pastAtom);
-  if (!past.length) return;
-  const previous = past[past.length - 1];
-  set(pastAtom, past.slice(0, -1));
-  set(futureAtom, [get(elementsAtom), ...get(futureAtom)].slice(0, HISTORY_LIMIT));
-  set(elementsAtom, previous);
-});
-
-export const redoAtom = atom(null, (get, set) => {
-  const future = get(futureAtom);
-  if (!future.length) return;
-  const next = future[0];
-  set(futureAtom, future.slice(1));
-  set(pastAtom, [...get(pastAtom), get(elementsAtom)].slice(-HISTORY_LIMIT));
-  set(elementsAtom, next);
-});
+/* ----------------------------- 画布 ----------------------------- */
 
 /** 清空画布 */
 export const clearCanvasAtom = atom(null, (get, set) => {
@@ -249,7 +174,7 @@ export const reorderZAtom = atom(null, (get, set, { id, to }) => {
   const parentId = target.parentId ?? null;
   const siblings = els
     .filter((e) => (e.parentId ?? null) === parentId)
-    .sort((a, b) => (a.z || 0) - (b.z || 0));
+    .toSorted((a, b) => (a.z || 0) - (b.z || 0));
   const idx = siblings.findIndex((e) => e.id === id);
   if (idx < 0) return;
   let newIdx = idx;
@@ -273,7 +198,7 @@ export const reorderContainerAtom = atom(null, (get, set, { parentId, activeId, 
   const els = get(elementsAtom);
   const siblings = els
     .filter((e) => (e.parentId ?? null) === parentId)
-    .sort((a, b) => (a.z || 0) - (b.z || 0));
+    .toSorted((a, b) => (a.z || 0) - (b.z || 0));
 
   const activeIndex = siblings.findIndex((e) => e.id === activeId);
   const overIndex = siblings.findIndex((e) => e.id === overId);
@@ -302,18 +227,8 @@ export const moveElementToContainerAtom = atom(null, (get, set, { elementId, tar
   const element = els.find((e) => e.id === elementId);
   if (!element || element.parentId === targetContainerId) return;
 
-  // 防止将容器移入自身或其子容器
-  const isDescendant = (parent, childId) => {
-    const children = els.filter((e) => e.parentId === parent.id);
-    for (const child of children) {
-      if (child.id === childId) return true;
-      if (isDescendant(child, childId)) return true;
-    }
-    return false;
-  };
-  if (targetContainerId && element.id === targetContainerId) return;
-  const targetContainer = els.find((e) => e.id === targetContainerId);
-  if (targetContainer && isDescendant(element, targetContainerId)) return;
+  // 防止将容器移入自身或其子容器（成环）
+  if (wouldCreateCycle(els, element.id, targetContainerId)) return;
 
   set(beginChangeAtom);
 
@@ -324,4 +239,51 @@ export const moveElementToContainerAtom = atom(null, (get, set, { elementId, tar
   set(elementsAtom, (list) =>
     list.map((e) => (e.id === elementId ? { ...e, parentId: targetContainerId, z: newZ } : e))
   );
+});
+
+/**
+ * 拖拽落地:统一处理容器内重排 / 跨容器移动 / 移出为顶层。
+ * 一次落地 = 一条撤销记录(beginChange)。
+ * - targetParentId === null:移出为顶层绝对元素,赋 x/y
+ * - targetParentId === 容器id:移入该容器(同或异),按 insertIndex 重排 z
+ * - insertIndex 为 null 时追加到目标容器末尾
+ */
+export const dropElementAtom = atom(null, (get, set, { id, targetParentId, insertIndex = null, x, y }) => {
+  const els = get(elementsAtom);
+  const el = els.find((e) => e.id === id);
+  if (!el) return;
+  const currentParent = el.parentId ?? null;
+  if (targetParentId === currentParent && insertIndex === null) return;
+
+  // 防环:不能移入自身或其后代容器
+  if (targetParentId !== null && wouldCreateCycle(els, id, targetParentId)) return;
+
+  set(beginChangeAtom);
+
+  if (targetParentId === null) {
+    // 移出为顶层:放到顶层末尾,赋绝对坐标
+    const topSiblings = els.filter((e) => !e.parentId && e.id !== id);
+    const newZ = topSiblings.length ? Math.max(...topSiblings.map((e) => e.z || 0)) + 1 : 0;
+    set(elementsAtom, (list) =>
+      list.map((e) => (e.id === id ? { ...e, parentId: null, z: newZ, x: x ?? 0, y: y ?? 0 } : e))
+    );
+    return;
+  }
+
+  // 移入容器(同容器重排 / 跨容器迁移):按 insertIndex 重排目标容器兄弟 z
+  set(elementsAtom, (list) => {
+    const siblingIds = list
+      .filter((e) => (e.parentId ?? null) === targetParentId && e.id !== id)
+      .toSorted((a, b) => (a.z || 0) - (b.z || 0))
+      .map((e) => e.id);
+    const idx =
+      insertIndex !== null ? Math.max(0, Math.min(siblingIds.length, insertIndex)) : siblingIds.length;
+    siblingIds.splice(idx, 0, id);
+    const zMap = new Map(siblingIds.map((eid, i) => [eid, i]));
+    return list.map((e) => {
+      if (e.id === id) return { ...e, parentId: targetParentId, z: zMap.get(e.id) ?? 0, x: 0, y: 0 };
+      const z = zMap.get(e.id);
+      return z !== undefined ? { ...e, z } : e;
+    });
+  });
 });

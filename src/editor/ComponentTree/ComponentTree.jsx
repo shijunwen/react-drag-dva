@@ -73,10 +73,14 @@ export default function ComponentTree() {
     };
   }, [elements]);
 
-  // 初始化展开的 keys
+  // 仅当容器集合变化时重置展开:elements 频繁变更(拖拽/编辑)但容器集合不变时,
+  // defaultExpandedKeys 仍是新数组引用--旧写法每次都 setExpandedKeys,触发多余 Tree 重渲染。
+  const containerIdsKey = defaultExpandedKeys.join("\n");
   useEffect(() => {
     setExpandedKeys(defaultExpandedKeys);
-  }, [defaultExpandedKeys]);
+    // 依赖容器 id 签名而非数组引用;defaultExpandedKeys 与其在同一次 render 计算,一致
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [containerIdsKey]);
 
   const handleSelect = useCallback((selectedKeys, info) => {
     if (info.selected && selectedKeys.length > 0) {
@@ -120,7 +124,7 @@ export default function ComponentTree() {
         // 已在容器内且拖到容器节点上：视作排到容器顶部（放在第一个子元素前面）
         const containerChildren = elements
           .filter((el) => (el.parentId ?? null) === targetParentId)
-          .sort((a, b) => (a.z || 0) - (b.z || 0));
+          .toSorted((a, b) => (a.z || 0) - (b.z || 0));
         const firstChild = containerChildren[0];
         if (firstChild && firstChild.id !== dragId) {
           reorderContainer({

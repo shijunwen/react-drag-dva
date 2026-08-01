@@ -35,6 +35,8 @@ export default defineConfig({
         /@dnd-kit/,
         /^react-moveable$/,
         /^react-infinite-viewer$/,
+        /^@scena\/react-guides$/,
+        /^@scena\/react-ruler$/,
         /^ahooks$/,
         /^ahooks\//,
       ],

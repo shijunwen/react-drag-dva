@@ -14,11 +14,11 @@ This is a **visual drag-and-drop editor** (拖拽编辑器): users drag componen
 
 ### Entry & layout
 
-`src/main.jsx` renders `<App />` inside antd's `ConfigProvider` (zh_CN locale, primary color `#58a6ff`). `src/App.jsx` mounts an antd `Layout` with `AppHeader` (toolbar: undo/redo, group/ungroup, align, delete, clear) and the `Editor` component filling the content area.
+`examples/main.jsx` renders `<App />` inside antd's `ConfigProvider` (zh_CN locale, primary color `#58a6ff`). `examples/App.jsx` mounts an antd `Layout` with `AppHeader` (toolbar: undo/redo, group/ungroup, align, delete, clear) and the `Editor` component filling the content area.
 
 ### State management (Jotai atoms)
 
-All editor state lives in `src/atoms/editor.js` and is re-exported from `src/atoms/index.js`. Key atoms:
+All editor state lives in `src/atoms/` (split by concern: `base`/`elements`/`history`/`selection`/`viewport`/`preview`) and is re-exported from `src/atoms/index.js`. Key atoms:
 
 - `elementsAtom` — flat array of all canvas elements (each has `id`, `type`, `x/y/width/height/rotation`, `groupId`, `props`).
 - `selectedIdsAtom` — array of selected element IDs (multi-select supported).
@@ -55,7 +55,7 @@ Grouping assigns the same `groupId` to selected elements (no nesting — it's a 
 
 ### Styling
 
-CSS Modules via `.module.less` files co-located with components. Global design tokens (colors, fonts, transitions) are defined as CSS custom properties in `src/styles/index.less` with light/dark variants via `prefers-color-scheme`. Antd's theme token is set in `main.jsx`. Path alias `@` maps to `src/` (configured in `vite.config.js`).
+CSS Modules via `.module.less` files co-located with components. Global design tokens (colors, fonts, transitions) are defined as CSS custom properties in `src/styles/index.less` with light/dark variants via `prefers-color-scheme`. Antd's theme token is set in `examples/main.jsx`. Path alias `@` maps to `src/` (configured in `vite.config.js`).
 
 ### ESLint conventions
 

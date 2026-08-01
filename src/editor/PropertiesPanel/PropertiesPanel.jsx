@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { InputNumber, Typography, Empty, Segmented } from "antd";
 import { useEditor } from "../useEditor";
 import { getDef } from "../elements";
@@ -6,6 +6,13 @@ import { getBounds } from "../utils";
 import styles from "./PropertiesPanel.module.less";
 
 const { Text } = Typography;
+
+// 提升到模块作用域的静态对象，避免每次 render 产生新引用
+const NUMBER_STYLE = { fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" };
+const UNIT_OPTIONS = [
+  { label: "px", value: "px" },
+  { label: "%", value: "%" },
+];
 
 /** 数值字段：聚焦时开启一条历史记录，编辑过程实时更新 */
 function NumberField({ label, value, onChange, onBegin }) {
@@ -18,6 +25,7 @@ function NumberField({ label, value, onChange, onBegin }) {
         min={0}
         onFocus={onBegin}
         onChange={(v) => onChange(v ?? 0)}
+        style={NUMBER_STYLE}
       />
     </label>
   );
@@ -30,7 +38,9 @@ const Z_ACTIONS = [
   { to: "front", label: "置顶" },
 ];
 
-export default function PropertiesPanel() {
+// 无 props，memo 阻断父级 Editor 的 zoom 等无关重渲染波及至此；
+// 自身仍随 selectedElements（useEditor）变化重渲染。
+const PropertiesPanel = memo(function PropertiesPanel() {
   const {
     selectedElements,
     updateElement,
@@ -71,10 +81,7 @@ export default function PropertiesPanel() {
                   size="small"
                   value={single.unit || "px"}
                   onChange={(v) => setElementUnit({ id: single.id, unit: v })}
-                  options={[
-                    { label: "px", value: "px" },
-                    { label: "%", value: "%" },
-                  ]}
+                  options={UNIT_OPTIONS}
                 />
               </div>
               <NumberField label="旋转" value={single.rotation} onChange={(v) => update({ rotation: v })} onBegin={beginChange} />
@@ -130,4 +137,6 @@ export default function PropertiesPanel() {
       )}
     </div>
   );
-}
+});
+
+export default PropertiesPanel;

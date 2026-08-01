@@ -1,43 +1,78 @@
 /**
- * 编辑器设计 token(色彩/字体/动画)。
- * 仅 :root 变量,不含全局 reset,避免作为库污染消费方样式。
- * - 库构建:src/index.js 引入本文件,纳入 dist/style.css。
- * - demo:src/styles/index.less @import 本文件后追加全局 reset。
- * 编辑器各 .module.less 通过 var(--color-*) 引用此处定义。
+ * 编辑器设计令牌 —「精密制图工坊」（Precision Drafting Atelier）
+ *
+ * 设计立意：编辑器是一间现代精密制图工坊，冷静、精确、有工程血统
+ * - 冷调灰蓝工作区背景 + 纯白色如纸张的面板，以发丝线分隔
+ * - 唯一信号色 teal 仅用于选中/聚焦/主操作，克制不滥用
+ * - 签名：画布顶部/左侧的精密工程标尺 + 悬停时的网格动画
+ * - 字体：IBM Plex 家族（工程血统），数字全部等宽
  */
+
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
-  /* 设计系统色彩变量 */
-  --color-primary: #3b82f6;
-  --color-primary-soft: #60a5fa;
-  --color-accent: #10b981;
-  --color-bg: #0f172a;
-  --color-bg-elevated: #1e293b;
-  --color-bg-container: #ffffff;
-  --color-bg-canvas: #0a0f1d;
-  --color-text: #f8fafc;
-  --color-text-muted: #94a3b8;
-  --color-border: #334155;
+  /* 信号色（唯一强调，克制使用） */
+  --color-primary: #0d9488;        /* teal-600 */
+  --color-primary-soft: #14b8a6;   /* teal-500 */
+  --color-primary-rgb: 13, 148, 136;
+  --color-primary-glow: rgba(13, 148, 136, 0.16);
 
-  /* 字体 */
-  --font-display: 'Space Grotesk', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  /* 次要状态（中性墨色，无第二 loud 色） */
+  --color-accent: #475569;         /* slate-600 */
+  --color-accent-rgb: 71, 85, 105;
 
-  /* 动画 */
+  /* 背景层次（冷调工作室 → 白色纸张 → 浅灰容器） */
+  --color-bg: #eef2f7;             /* 工作区背景 — 冷调灰蓝 */
+  --color-bg-canvas: #eef2f7;      /* 画布外区域 */
+  --color-bg-elevated: #ffffff;    /* 面板/画布 — 纯白如纸张 */
+  --color-bg-container: #fafbfc;   /* 内部容器 — 极浅灰 */
+  --color-bg-hover: rgba(13, 148, 136, 0.06);
+
+  /* 文字（冷墨） */
+  --color-text: #1e293b;           /* slate-800 */
+  --color-text-muted: #64748b;     /* slate-500 */
+  --color-text-label: #475569;     /* slate-600 — 标签 */
+
+  /* 发丝线分割 */
+  --color-border: #dfe5ed;
+  --color-border-subtle: #f0f4f8;
+
+  /* 工程网格刻度（画布签名） */
+  --grid-minor: rgba(30, 41, 59, 0.04);
+  --grid-major: rgba(30, 41, 59, 0.08);
+  --grid-major-hover: rgba(30, 41, 59, 0.12);
+
+  /* 标尺刻度 */
+  --ruler-bg: #f7f9fc;
+  --ruler-text: #64748b;
+  --ruler-line: rgba(30, 41, 59, 0.12);
+  --ruler-indicator: #0d9488;
+
+  /* 字体（IBM Plex 家族，工程血统） */
+  --font-display: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+
+  /* 动画（克制，仅微交互） */
   --transition-fast: 150ms ease;
-  --transition-normal: 250ms ease;
-  --transition-slow: 400ms ease;
-}
+  --transition-normal: 220ms ease;
+  --transition-slow: 350ms ease;
 
-/* 浅色模式 */
-@media (prefers-color-scheme: light) {
-  :root {
-    --color-bg: #f8fafc;
-    --color-bg-elevated: #f1f5f9;
-    --color-bg-canvas: #e2e8f0;
-    --color-text: #0f172a;
-    --color-text-muted: #64748b;
-    --color-border: #e2e8f0;
-  }
+  /* 圆角刻度（小圆角，保持精密感） */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* 间距刻度（工程单位感） */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  /* 阴影层次（克制，纸张托起感） */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 2px 8px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.03);
+  --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.04);
+  --shadow-glow: 0 0 0 1px rgba(var(--color-primary-rgb), 0.2), 0 0 0 4px var(--color-primary-glow);
 }

@@ -143,3 +143,61 @@ export const reorderContainerChildren = (elements, parentId, newOrder) => {
     return z !== undefined ? { ...el, z } : el;
   });
 };
+
+/** parentId -> children[] 索引（null 键为顶层），用于 O(1) 子元素查找 */
+export const buildChildrenMap = (elements) => {
+  const map = new Map();
+  for (const el of elements) {
+    const pid = el.parentId ?? null;
+    const arr = map.get(pid);
+    if (arr) arr.push(el);
+    else map.set(pid, [el]);
+  }
+  return map;
+};
+
+/**
+ * 将 elementId 移入 targetContainerId 是否成环
+ * （target 是 element 自身或其后代）。基于 childrenMap 的迭代 DFS，O(n)。
+ */
+export const wouldCreateCycle = (elements, elementId, targetContainerId) => {
+  if (elementId === null || targetContainerId === null) return false;
+  if (elementId === targetContainerId) return true;
+  const childrenMap = buildChildrenMap(elements);
+  const stack = [elementId];
+  const seen = new Set([elementId]);
+  while (stack.length) {
+    const children = childrenMap.get(stack.pop());
+    if (!children) continue;
+    for (const c of children) {
+      if (c.id === targetContainerId) return true;
+      if (!seen.has(c.id)) {
+        seen.add(c.id);
+        stack.push(c.id);
+      }
+    }
+  }
+  return false;
+};
+
+/** 两矩形重叠面积(屏幕坐标,均含 zoom 缩放,直接比较即可) */
+export const rectOverlapArea = (a, b) => {
+  const ix = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left));
+  const iy = Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+  return ix * iy;
+};
+
+/**
+ * 在流式子元素序列中,按落点中心找到插入索引。
+ * 按渲染顺序遍历,找第一个「落点中心在其左半」的兄弟,插其前面;否则追加末尾。
+ * @param {Array<{id, rect}>} orderedSiblings - 已按 z 排序、含 DOM rect 的兄弟(已排除拖拽元素)
+ * @param {{x:number,y:number}} center - 落点中心(屏幕坐标)
+ * @returns {number} 插入索引 0..length
+ */
+export const findFlowInsertIndex = (orderedSiblings, center) => {
+  for (let i = 0; i < orderedSiblings.length; i++) {
+    const mid = orderedSiblings[i].rect.left + orderedSiblings[i].rect.width / 2;
+    if (center.x < mid) return i;
+  }
+  return orderedSiblings.length;
+};

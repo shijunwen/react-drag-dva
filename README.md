@@ -36,7 +36,7 @@ import { ConfigProvider } from "antd";
 
 export default function App() {
   return (
-    <ConfigProvider theme={{ token: { colorPrimary: "#58a6ff" } }}>
+    <ConfigProvider theme={{ token: { colorPrimary: "#0d9488" } }}>
       <Editor />
     </ConfigProvider>
   );
@@ -107,7 +107,7 @@ import { Editor, Preview, useEditor } from "react-drag-dva";
 |------|------|
 | 组件 | `Editor`、`Preview`(纯渲染预览态) |
 | Hook | `useEditor()`(读取状态 + 调用动作) |
-| 状态 atoms | `elementsAtom`、`selectedIdsAtom`、`selectedElementsAtom`、`viewportAtom`、`previewModeAtom`、`setElementsAtom`、`addElementAtom`、`updateElementAtom`、`updateElementsAtom`、`setElementUnitAtom`、`deleteSelectedAtom`、`selectAtom`、`toggleSelectAtom`、`clearSelectionAtom`、`groupSelectedAtom`、`ungroupSelectedAtom`、`alignSelectedAtom`、`reorderZAtom`、`reorderContainerAtom`、`moveElementToContainerAtom`、`undoAtom`、`redoAtom`、`clearCanvasAtom`、`beginChangeAtom`、`setViewportAtom`、`setZoomAtom`、`setCanvasSizeAtom`、`setPreviewModeAtom` |
+| 状态 atoms | `elementsAtom`、`selectedIdsAtom`、`selectedElementsAtom`、`viewportAtom`、`zoomAtom`、`canvasWidthAtom`、`canvasHeightAtom`、`previewModeAtom`、`setElementsAtom`、`addElementAtom`、`updateElementAtom`、`updateElementsAtom`、`setElementUnitAtom`、`deleteSelectedAtom`、`selectAtom`、`toggleSelectAtom`、`clearSelectionAtom`、`groupSelectedAtom`、`ungroupSelectedAtom`、`alignSelectedAtom`、`reorderZAtom`、`reorderContainerAtom`、`moveElementToContainerAtom`、`undoAtom`、`redoAtom`、`clearCanvasAtom`、`beginChangeAtom`、`setViewportAtom`、`setZoomAtom`、`setCanvasSizeAtom`、`setPreviewModeAtom` |
 | 注册表 | `ELEMENT_DEFS`、`getDef(type)`、`ELEMENT_TYPES`、`PALETTE_ITEMS`、`PALETTE_ITEM_MAP`、`ELEMENT_ICONS` |
 | 工具 | `createElement`、`getBounds`、`expandGroupSelection`、`toPercent`、`pxToUnit`、`toCss` |
 | 常量 | `UNIT`、`CANVAS_WIDTH`、`CANVAS_HEIGHT` |
@@ -149,17 +149,38 @@ function Inspector() {
 
 ## 样式
 
-- 引入 `react-drag-dva/style.css` 即可获得设计 token(`:root` 上的 `--color-*` 变量,含浅/深色自适应)与全部组件样式。
-- token 定义见 `src/editor/tokens.less`,如需自定义可覆盖对应 CSS 变量。
+- 视觉身份为「制图工坊(drafting instrument)」:冷纸色工作区 + 白色面板 + 单一 teal 信号色 + 工程制图网格(主/次刻度线)+ IBM Plex 等宽坐标。引入 `react-drag-dva/style.css` 即可获得设计 token(`:root` 上的 `--color-*` 变量)与全部组件样式。
+- token 定义见 `src/editor/tokens.less`,如需自定义可覆盖对应 CSS 变量(主色 `--color-primary`、字体 `--font-display`/`--font-mono` 等)。
+- **推荐对齐 antd 主色**(Editor 内部使用 antd 组件),完整观感建议加载 IBM Plex 字体:
+  ```jsx
+  import { ConfigProvider } from "antd";
+  import "react-drag-dva/style.css";
+
+  <ConfigProvider theme={{ token: { colorPrimary: "#0d9488" } }}>
+    <Editor />
+  </ConfigProvider>
+  ```
+  字体可自行引入 IBM Plex Sans/Mono,或覆盖 `--font-*` token 回退系统字体。
 
 ## 本地开发
 
+仓库结构:库源码在 `src/`,demo 在 `examples/`(经 `@` 别名引用 `src/`)。
+
 ```bash
 pnpm install
-pnpm dev          # 启动 demo(http://localhost:5173)
-pnpm build        # 构建 demo
-pnpm build:lib    # 构建库 -> dist/(index.js / index.cjs / style.css)
+pnpm dev          # 启动 demo(http://localhost:5173,入口 examples/index.html)
+pnpm build        # 构建 demo -> dist-demo/
+pnpm build:lib    # 构建库 -> dist/(index.js / index.cjs / index.d.ts / style.css)
 pnpm lint         # ESLint(--max-warnings 0)
+```
+
+## TypeScript
+
+本库附带类型声明(`dist/index.d.ts`),`package.json` 已配置 `types` 与 `exports.types`。TypeScript 用户安装后可直接获得 `Editor`、`EditorElement`、`useEditor()`、各 atom 与工具函数的类型提示,无需额外 `@types` 包。
+
+```ts
+import { Editor, type EditorElement } from "react-drag-dva";
+const seed: EditorElement[] = [];
 ```
 
 ### 新增元素类型
