@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef, useEffect } from "react";
+import { memo, useMemo, useRef, useEffect, useCallback } from "react";
 import { flushSync } from "react-dom";
 import { useAtomValue, useSetAtom } from "jotai";
 import Moveable from "react-moveable";
@@ -109,6 +109,41 @@ function MoveableLayer({ elementRefs, moveableRef, gridSnapEnabled, gridSnapSize
   const dragCtxRef = useRef(null); // 拖拽上下文：{ mode: "top"|"container", id, parentId? }
   const scrollLockRef = useRef([]); // 拖拽期间锁定的可滚祖先(用于恢复)
   const dragOverRef = useRef(null); // 当前悬停的容器 id(去重用，避免每帧写 atom 触发重渲染)
+  // InfiniteViewer 包装器滚动固定（防止拖拽元素时画布偏移）
+  const pinnedScrollRef = useRef({ left: 0, top: 0 });
+  const scrollListenerRef = useRef(null);
+  const scrollPinnedRef = useRef(false);
+
+  // 固定 InfiniteViewer 包装器的滚动位置（支持多手势并发）
+  const pinViewerScroll = useCallback(() => {
+    if (scrollPinnedRef.current) return;
+    const board = document.getElementById("canvas-board-el");
+    const wrapper = board?.parentElement?.parentElement;
+    if (!wrapper) return;
+    pinnedScrollRef.current = {
+      left: wrapper.scrollLeft,
+      top: wrapper.scrollTop
+    };
+    // 添加滚动监听器，重置任何滚动
+    const resetScroll = () => {
+      wrapper.scrollLeft = pinnedScrollRef.current.left;
+      wrapper.scrollTop = pinnedScrollRef.current.top;
+    };
+    wrapper.addEventListener("scroll", resetScroll, { passive: false });
+    scrollListenerRef.current = resetScroll;
+    scrollPinnedRef.current = true;
+  }, []);
+
+  // 恢复 InfiniteViewer 包装器的滚动（支持多手势并发）
+  const unpinViewerScroll = useCallback(() => {
+    if (!scrollPinnedRef.current) return;
+    const board = document.getElementById("canvas-board-el");
+    const wrapper = board?.parentElement?.parentElement;
+    if (!wrapper || !scrollListenerRef.current) return;
+    wrapper.removeEventListener("scroll", scrollListenerRef.current);
+    scrollListenerRef.current = null;
+    scrollPinnedRef.current = false;
+  }, []);
 
   // 选中元素引用
   const targets = selectedIds
@@ -289,6 +324,8 @@ function MoveableLayer({ elementRefs, moveableRef, gridSnapEnabled, gridSnapSize
       onDragStart={
         draggable
           ? (e) => {
+              // 固定 InfiniteViewer 滚动，防止拖拽时画布偏移
+              pinViewerScroll();
               // 清除可能残留的悬停高亮（上次拖拽异常中断时）
               dragOverRef.current = null;
               setDragOverId(null);
@@ -386,10 +423,14 @@ function MoveableLayer({ elementRefs, moveableRef, gridSnapEnabled, gridSnapSize
               // 拖拽结束：清除容器悬停高亮
               dragOverRef.current = null;
               setDragOverId(null);
+              // 释放固定的滚动位置
+              unpinViewerScroll();
             }
           : undefined
       }
       onResize={(e) => {
+        // 固定 InfiniteViewer 滚动，防止缩放时画布偏移
+        pinViewerScroll();
         begin();
         const id = e.target.dataset.id;
         const el = elementsById.get(id);
@@ -422,11 +463,16 @@ function MoveableLayer({ elementRefs, moveableRef, gridSnapEnabled, gridSnapSize
         }
         pendingRef.current = [{ id, patch }];
       }}
-      onResizeEnd={commitSingle}
+      onResizeEnd={() => {
+        commitSingle();
+        unpinViewerScroll();
+      }}
       /* ---------- 分组 / 多选 ---------- */
       onDragGroup={
         draggable
           ? (e) => {
+              // 固定 InfiniteViewer 滚动，防止多选拖拽时画布偏移
+              pinViewerScroll();
               begin();
               pendingRef.current = e.events.map((ev) => {
                 const id = ev.target.dataset.id;
@@ -451,8 +497,13 @@ function MoveableLayer({ elementRefs, moveableRef, gridSnapEnabled, gridSnapSize
             }
           : undefined
       }
-      onDragGroupEnd={draggable ? commitGroup : undefined}
+      onDragGroupEnd={() => {
+        commitGroup();
+        unpinViewerScroll();
+      }}
       onResizeGroup={(e) => {
+        // 固定 InfiniteViewer 滚动，防止多选缩放时画布偏移
+        pinViewerScroll();
         begin();
         pendingRef.current = e.events.map((ev) => {
           const id = ev.target.dataset.id;
@@ -486,10 +537,15 @@ function MoveableLayer({ elementRefs, moveableRef, gridSnapEnabled, gridSnapSize
           return { id, patch };
         });
       }}
-      onResizeGroupEnd={commitGroup}
+      onResizeGroupEnd={() => {
+        commitGroup();
+        unpinViewerScroll();
+      }}
       onRotate={
         rotatable
           ? (e) => {
+              // 固定 InfiniteViewer 滚动，防止旋转时画布偏移
+              pinViewerScroll();
               begin();
               const id = e.target.dataset.id;
               const el = elementsById.get(id);
@@ -500,10 +556,15 @@ function MoveableLayer({ elementRefs, moveableRef, gridSnapEnabled, gridSnapSize
             }
           : undefined
       }
-      onRotateEnd={rotatable ? commitSingle : undefined}
+      onRotateEnd={() => {
+        commitSingle();
+        unpinViewerScroll();
+      }}
       onRotateGroup={
         rotatable
           ? (e) => {
+              // 固定 InfiniteViewer 滚动，防止多选旋转时画布偏移
+              pinViewerScroll();
               begin();
               pendingRef.current = e.events.map((ev) => {
                 const id = ev.target.dataset.id;
@@ -516,7 +577,10 @@ function MoveableLayer({ elementRefs, moveableRef, gridSnapEnabled, gridSnapSize
             }
           : undefined
       }
-      onRotateGroupEnd={rotatable ? commitGroup : undefined}
+      onRotateGroupEnd={() => {
+        commitGroup();
+        unpinViewerScroll();
+      }}
     />
   );
 }

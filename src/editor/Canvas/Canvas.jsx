@@ -99,6 +99,8 @@ export default function Canvas({ dndActive }) {
   const canDrag = (panEnabled || spaceHeld) && !dndActive;
   // 用 ref 同步存储 canDrag，避免事件回调闭包读到过期的 state
   const canDragRef = useRef(canDrag);
+  // 选中元素的 ref 同步，用于 handleViewerDragStart 中判断
+  const selectedIdsRef = useRef(selectedIds);
   // InfiniteViewer 实例（需在使用前声明，避免 TDZ）
   const viewerRef = useRef(null);
   // Guides 实例（水平、垂直）
@@ -205,7 +207,8 @@ export default function Canvas({ dndActive }) {
 
   useEffect(() => {
     canDragRef.current = canDrag;
-  }, [canDrag]);
+    selectedIdsRef.current = selectedIds;
+  }, [canDrag, selectedIds]);
 
   // 在 InfiniteViewer 根元素上注册原生捕获阶段 wheel 监听：
   // - dnd-kit 拖拽中时阻止滚轮事件到达 InfiniteViewer 的 onWheel
@@ -446,8 +449,8 @@ export default function Canvas({ dndActive }) {
 
   // InfiniteViewer 画布平移起手判定：仅读 ref/window，无依赖，回调稳定
   const handleViewerDragStart = useCallback((e) => {
-    // dnd-kit 拖拽中（全局标记，同步可读）或非空格模式时阻止画布平移
-    if (window.__dndActive || !canDragRef.current) return false;
+    // dnd-kit 拖拽中（全局标记，同步可读）、非空格模式、或有元素选中时阻止画布平移
+    if (window.__dndActive || !canDragRef.current || selectedIdsRef.current.length > 0) return false;
     // 点中元素或控制条时也阻止
     const target = e.inputEvent?.target;
     if (target?.closest?.("[data-id]") || target?.closest?.("[data-zoom-bar]")) {
