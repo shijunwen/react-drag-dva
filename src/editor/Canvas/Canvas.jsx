@@ -207,8 +207,9 @@ export default function Canvas({ dndActive }) {
     canDragRef.current = canDrag;
   }, [canDrag]);
 
-  // 在 InfiniteViewer 根元素上注册原生捕获阶段 wheel 监听，
-  // dnd-kit 拖拽中时阻止滚轮事件到达 InfiniteViewer 的 onWheel
+  // 在 InfiniteViewer 根元素上注册原生捕获阶段 wheel 监听：
+  // - dnd-kit 拖拽中时阻止滚轮事件到达 InfiniteViewer 的 onWheel
+  // - 画布拖拽开关关闭时，阻止普通滚轮平移画布（保留 ctrl/meta+滚轮缩放）
   useEffect(() => {
     const el = viewerRef.current?.getContainer?.();
     if (!el) return;
@@ -216,6 +217,11 @@ export default function Canvas({ dndActive }) {
       if (window.__dndActive) {
         e.preventDefault();
         e.stopImmediatePropagation();
+        return;
+      }
+      // 画布拖拽关闭时，阻止普通滚轮平移（保留 ctrl/meta+缩放）
+      if (!canDragRef.current && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
       }
     };
     el.addEventListener("wheel", handler, { capture: true, passive: false });
@@ -508,6 +514,7 @@ export default function Canvas({ dndActive }) {
             useMouseDrag
             usePinch
             useWheelPinch
+            useWheelScroll={canDrag}
             useGesture
             useAutoZoom
             zoom={zoom}
