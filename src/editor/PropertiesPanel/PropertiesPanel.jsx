@@ -1,7 +1,8 @@
 import { memo, useMemo } from "react";
-import { InputNumber, Typography, Empty, Segmented } from "antd";
+import { InputNumber, Typography, Empty, Segmented, Switch } from "antd";
 import { useEditor } from "../useEditor";
 import { getDef } from "../elements";
+import ElementErrorBoundary from "../ElementErrorBoundary";
 import { getBounds } from "../utils";
 import styles from "./PropertiesPanel.module.less";
 
@@ -85,6 +86,28 @@ const PropertiesPanel = memo(function PropertiesPanel() {
                 />
               </div>
               <NumberField label="旋转" value={single.rotation} onChange={(v) => update({ rotation: v })} onBegin={beginChange} />
+              <div className={styles.field}>
+                <span className={styles.label}>锁定</span>
+                <Switch
+                  size="small"
+                  checked={single.locked}
+                  onChange={(checked) => {
+                    beginChange();
+                    update({ locked: checked });
+                  }}
+                />
+              </div>
+              <div className={styles.field}>
+                <span className={styles.label}>隐藏</span>
+                <Switch
+                  size="small"
+                  checked={single.hidden}
+                  onChange={(checked) => {
+                    beginChange();
+                    update({ hidden: checked });
+                  }}
+                />
+              </div>
             </div>
           </section>
 
@@ -110,7 +133,12 @@ const PropertiesPanel = memo(function PropertiesPanel() {
               组件属性
             </Text>
             {TypePropsComp ? (
-              <TypePropsComp el={single} update={update} begin={beginChange} styles={styles} />
+              <ElementErrorBoundary
+                resetKey={single.id}
+                fallback={<span style={{ color: "#ef4444", fontSize: 12 }}>属性面板渲染失败</span>}
+              >
+                <TypePropsComp el={single} update={update} begin={beginChange} styles={styles} />
+              </ElementErrorBoundary>
             ) : null}
           </section>
         </>

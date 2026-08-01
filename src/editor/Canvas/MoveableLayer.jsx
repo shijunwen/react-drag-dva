@@ -34,6 +34,7 @@ const applyToDom = (target, patch, unit = "px") => {
   if (patch.y !== undefined) target.style.top = `${patch.y}px`;
   if (patch.width !== undefined) target.style.width = xIsPercent ? `${patch.width}%` : `${patch.width}px`;
   if (patch.height !== undefined) target.style.height = `${patch.height}px`;
+  if (patch.rotation !== undefined) target.style.transform = `rotate(${patch.rotation}deg)`;
 };
 
 /**
@@ -77,7 +78,7 @@ const GET_SCROLL_POSITION = () => ZERO_SCROLL_POS;
  * - 顶层元素：拖拽（left/top）+ 缩放，落点即位置
  * - 容器内元素：拖拽时 transform 悬浮（占位保留），落地碰撞定归属 + 流式插入；缩放照旧
  */
-function MoveableLayer({ elementRefs, moveableRef }) {
+function MoveableLayer({ elementRefs, moveableRef, gridSnapEnabled, gridSnapSize }) {
   const elements = useAtomValue(elementsAtom);
   const selectedIds = useAtomValue(selectedIdsAtom);
   const updateElement = useSetAtom(updateElementAtom);
@@ -114,6 +115,9 @@ function MoveableLayer({ elementRefs, moveableRef }) {
     .map((id) => elementRefs.current.get(id))
     .filter(Boolean);
   const isGroup = targets.length > 1;
+  const hasLockedSelected = selectedIds.some((id) => elementsById.get(id)?.locked);
+  const snapGridWidth = gridSnapEnabled ? gridSnapSize : 0;
+  const snapGridHeight = gridSnapEnabled ? gridSnapSize : 0;
 
   // undo/redo 后选中元素可能已不存在，过滤无效选中
   const select = useSetAtom(selectAtom);
@@ -150,8 +154,9 @@ function MoveableLayer({ elementRefs, moveableRef }) {
   );
 
   // 单选均可拖；多选仅顶层（容器内多选仅 resize）
-  const draggable = !(isGroup && isInContainer);
-  const resizable = true;
+  const draggable = !hasLockedSelected && !(isGroup && isInContainer);
+  const resizable = !hasLockedSelected;
+  const rotatable = !hasLockedSelected;
   const snappable = !isInContainer;
 
   // 容器 id 列表（拖拽命中测试只遍历容器，不扫描全部元素）
@@ -251,13 +256,24 @@ function MoveableLayer({ elementRefs, moveableRef }) {
     return { targetParentId: null, x, y };
   };
 
+  const buildRotationTransform = (translate, rotation) => {
+    const parts = [];
+    if (translate) parts.push(translate);
+    if (rotation !== undefined && rotation !== null) parts.push(`rotate(${rotation}deg)`);
+    return parts.join(" ");
+  };
+
   return (
     <Moveable
       ref={moveableRef}
       target={isGroup ? targets : targets[0]}
       draggable={draggable}
       resizable={resizable}
+      rotatable={rotatable}
       snappable={snappable}
+      snapGridWidth={snapGridWidth}
+      snapGridHeight={snapGridHeight}
+      snapGridAll={true}
       snapThreshold={SNAP_THRESHOLD}
       elementGuidelines={elementGuidelines}
       isDisplaySnapDigit
@@ -299,7 +315,7 @@ function MoveableLayer({ elementRefs, moveableRef }) {
               if (el.parentId) {
                 // 容器内：transform 悬浮（占位保留，零重渲染），落地由 onDragEnd 碰撞定归属
                 const [dx, dy] = e.dist;
-                e.target.style.transform = `translate(${dx}px, ${dy}px)`;
+                e.target.style.transform = buildRotationTransform(`translate(${dx}px, ${dy}px)`, el.rotation);
                 e.target.style.zIndex = "999";
                 pendingRef.current = [];
                 updateDragOver(e.target, el);
@@ -398,6 +414,12 @@ function MoveableLayer({ elementRefs, moveableRef }) {
           patch.y = clamp(round(e.drag.top), 0, canvasHeight - patch.height);
         }
         applyToDom(e.target, patch, unit);
+        if (isInContainer) {
+          e.target.style.transform = buildRotationTransform(
+            `translate(${round(e.drag.left)}px, ${round(e.drag.top)}px)`,
+            el.rotation,
+          );
+        }
         pendingRef.current = [{ id, patch }];
       }}
       onResizeEnd={commitSingle}
@@ -418,6 +440,12 @@ function MoveableLayer({ elementRefs, moveableRef }) {
                 const x = clamp(round(el.x + gx, isPercent ? 2 : 0), 0, maxX);
                 const y = clamp(round(el.y + gy), 0, canvasHeight - el.height);
                 applyToDom(ev.target, { x, y }, unit);
+                if (isInContainer) {
+                  ev.target.style.transform = buildRotationTransform(
+                    `translate(${round(ev.dist[0])}px, ${round(ev.dist[1])}px)`,
+                    el.rotation,
+                  );
+                }
                 return { id, patch: { x, y } };
               });
             }
@@ -449,10 +477,46 @@ function MoveableLayer({ elementRefs, moveableRef }) {
             patch.y = clamp(round(ev.drag.top), 0, canvasHeight - patch.height);
           }
           applyToDom(ev.target, patch, unit);
+          if (isInContainer) {
+            ev.target.style.transform = buildRotationTransform(
+              `translate(${round(ev.drag.left)}px, ${round(ev.drag.top)}px)`,
+              el.rotation,
+            );
+          }
           return { id, patch };
         });
       }}
       onResizeGroupEnd={commitGroup}
+      onRotate={
+        rotatable
+          ? (e) => {
+              begin();
+              const id = e.target.dataset.id;
+              const el = elementsById.get(id);
+              if (!el) return;
+              const rotation = round(e.rotation);
+              applyToDom(e.target, { rotation });
+              pendingRef.current = [{ id, patch: { rotation } }];
+            }
+          : undefined
+      }
+      onRotateEnd={rotatable ? commitSingle : undefined}
+      onRotateGroup={
+        rotatable
+          ? (e) => {
+              begin();
+              pendingRef.current = e.events.map((ev) => {
+                const id = ev.target.dataset.id;
+                const el = elementsById.get(id);
+                if (!el) return { id, patch: {} };
+                const rotation = round(ev.rotation);
+                ev.target.style.transform = buildRotationTransform(undefined, rotation);
+                return { id, patch: { rotation } };
+              });
+            }
+          : undefined
+      }
+      onRotateGroupEnd={rotatable ? commitGroup : undefined}
     />
   );
 }

@@ -1,6 +1,6 @@
 // Type declarations for react-drag-dva
 import type { Atom, WritableAtom, PrimitiveAtom } from "jotai";
-import type { ComponentType, FC } from "react";
+import type { ComponentType, FC, ReactNode } from "react";
 
 /* ============================ 基础类型 ============================ */
 
@@ -118,6 +118,8 @@ export interface EditorProps {
   onChange?: (elements: EditorElement[]) => void;
   /** 非受控模式的挂载种子(仅一次,受控模式下忽略) */
   initialElements?: EditorElement[];
+  /** 顶部自定义 chrome(如工具栏),在 Editor 的 Jotai store 内渲染,可用 useEditor()/atoms 与本实例联动 */
+  children?: ReactNode;
 }
 
 /** 可视化拖拽编辑器 */

@@ -11,6 +11,7 @@ import {
   reorderContainerChildren,
   buildChildrenMap,
   wouldCreateCycle,
+  genId,
 } from "@/editor/utils";
 import { UNIT } from "@/editor/constants";
 
@@ -162,6 +163,104 @@ export const clearCanvasAtom = atom(null, (get, set) => {
   set(beginChangeAtom);
   set(elementsAtom, []);
   set(selectedIdsAtom, []);
+});
+
+/* ----------------------------- 剪贴板 / 复制粘贴 ----------------------------- */
+
+/** 剪贴板:存放复制的元素快照(随 Jotai store 隔离,每实例独立) */
+export const clipboardAtom = atom([]);
+
+/** 克隆偏移量(px) */
+const DUPE_OFFSET = 20;
+
+/**
+ * 克隆一组元素:新 id、偏移位置、保持同组关系(新 groupId,与原组分离)、
+ * 同级置于顶部(z = 当前最大 + 1)。parentId 保留(容器内复制仍在原容器)。
+ */
+const cloneElements = (elements, allElements) => {
+  const groupIdMap = new Map();
+  const maxZ = new Map();
+  for (const e of allElements) {
+    const pid = e.parentId ?? null;
+    maxZ.set(pid, Math.max(maxZ.get(pid) ?? -1, e.z || 0));
+  }
+  return elements.map((e) => {
+    let ng = e.groupId;
+    if (e.groupId) {
+      if (!groupIdMap.has(e.groupId)) groupIdMap.set(e.groupId, genId("grp"));
+      ng = groupIdMap.get(e.groupId);
+    }
+    const pid = e.parentId ?? null;
+    const z = (maxZ.get(pid) ?? -1) + 1;
+    maxZ.set(pid, z);
+    return {
+      ...e,
+      id: genId(),
+      x: (e.x || 0) + DUPE_OFFSET,
+      y: (e.y || 0) + DUPE_OFFSET,
+      z,
+      groupId: ng,
+      props: { ...e.props },
+    };
+  });
+};
+
+/** 复制选中到剪贴板 */
+export const copySelectedAtom = atom(null, (get, set) => {
+  const ids = get(selectedIdsAtom);
+  if (!ids.length) return;
+  const idSet = new Set(ids);
+  set(clipboardAtom, get(elementsAtom).filter((e) => idSet.has(e.id)));
+});
+
+/** 粘贴剪贴板(克隆 + 偏移 + 选中新元素) */
+export const pasteAtom = atom(null, (get, set) => {
+  const clip = get(clipboardAtom);
+  if (!clip.length) return;
+  set(beginChangeAtom);
+  const newEls = cloneElements(clip, get(elementsAtom));
+  set(elementsAtom, (list) => [...list, ...newEls]);
+  set(selectedIdsAtom, newEls.map((e) => e.id));
+});
+
+/** 直接克隆选中(原地复制 + 偏移 + 选中) */
+export const duplicateSelectedAtom = atom(null, (get, set) => {
+  const ids = get(selectedIdsAtom);
+  if (!ids.length) return;
+  const idSet = new Set(ids);
+  const all = get(elementsAtom);
+  set(beginChangeAtom);
+  const newEls = cloneElements(all.filter((e) => idSet.has(e.id)), all);
+  set(elementsAtom, (list) => [...list, ...newEls]);
+  set(selectedIdsAtom, newEls.map((e) => e.id));
+});
+
+/* ----------------------------- 键盘微调 ----------------------------- */
+
+/**
+ * 微调选中元素位置(仅顶层元素;容器内子元素为流式布局,x/y 不生效)。
+ * % 单位元素按画布宽度换算 dx;y 始终 px。自动夹在画布范围内。
+ */
+export const nudgeSelectedAtom = atom(null, (get, set, { dx, dy }) => {
+  const ids = get(selectedIdsAtom);
+  if (!ids.length) return;
+  const idSet = new Set(ids);
+  const { canvasWidth, canvasHeight } = get(viewportAtom);
+  set(beginChangeAtom);
+  set(elementsAtom, (list) =>
+    list.map((e) => {
+      if (!idSet.has(e.id) || e.parentId || e.locked) return e;
+      const isPercent = (e.unit || "px") === "%";
+      const gx = isPercent && canvasWidth ? (dx / canvasWidth) * 100 : dx;
+      const maxX = isPercent ? 100 - e.width : canvasWidth - e.width;
+      const x = Math.max(
+        0,
+        Math.min(maxX, isPercent ? +((e.x || 0) + gx).toFixed(2) : Math.round((e.x || 0) + gx)),
+      );
+      const y = Math.max(0, Math.min((canvasHeight || Infinity) - e.height, Math.round((e.y || 0) + dy)));
+      return { ...e, x, y };
+    }),
+  );
 });
 
 /* ----------------------------- 层叠排序 ----------------------------- */

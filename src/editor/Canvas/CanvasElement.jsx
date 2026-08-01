@@ -1,21 +1,28 @@
 import { memo, useCallback } from "react";
 import { ELEMENT_TYPES, getDef } from "../elements";
 import ContainerBox from "./ContainerBox";
+import ElementErrorBoundary from "../ElementErrorBoundary";
 import styles from "./Canvas.module.less";
 
 /** 渲染元素内部内容:基础类型走注册表 Content,容器特判(ContainerBox) */
 function renderContent(el, elementRefs, registerRef) {
   if (el.type === ELEMENT_TYPES.CONTAINER) {
     return (
-      <ContainerBox
-        el={el}
-        elementRefs={elementRefs}
-        registerRef={registerRef}
-      />
+      <ElementErrorBoundary resetKey={el.id}>
+        <ContainerBox
+          el={el}
+          elementRefs={elementRefs}
+          registerRef={registerRef}
+        />
+      </ElementErrorBoundary>
     );
   }
   const Content = getDef(el.type)?.Content;
-  return Content ? <Content el={el} styles={styles} /> : null;
+  return Content ? (
+    <ElementErrorBoundary resetKey={el.id}>
+      <Content el={el} styles={styles} />
+    </ElementErrorBoundary>
+  ) : null;
 }
 
 /**

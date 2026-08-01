@@ -20,10 +20,10 @@ export default function ContainerBox({ el, elementRefs, registerRef }) {
   const dragOverId = useAtomValue(dragOverContainerIdAtom);
   const highlighted = isOver || dragOverId === el.id;
 
-  // 容器内子元素按 z 排序（z 作为流式顺序索引）
+  // 容器内子元素按 z 排序（z 作为流式顺序索引），隐藏元素不渲染
   const children = useMemo(() => {
     return allElements
-      .filter((c) => (c.parentId ?? null) === el.id)
+      .filter((c) => (c.parentId ?? null) === el.id && !c.hidden)
       .toSorted((a, b) => (a.z || 0) - (b.z || 0));
   }, [allElements, el.id]);
 
@@ -47,6 +47,7 @@ export default function ContainerBox({ el, elementRefs, registerRef }) {
   return (
     <div
       ref={setNodeRef}
+      data-droppable-id={`container-${el.id}`}
       className={`${styles.container}${highlighted ? ` ${styles.over}` : ""}`}
     >
       <div className={styles.visual} />

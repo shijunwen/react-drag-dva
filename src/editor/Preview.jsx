@@ -2,17 +2,26 @@ import { memo, useMemo } from "react";
 import { useAtomValue } from "jotai";
 import { elementsAtom, canvasWidthAtom, canvasHeightAtom } from "@/atoms";
 import { ELEMENT_TYPES, getDef } from "./elements";
+import ElementErrorBoundary from "./ElementErrorBoundary";
 import { UNIT } from "./constants";
-import { toPercent } from "./utils";
+import { toCss, toPercent } from "./utils";
 import styles from "./Preview.module.less";
 
 /** 渲染元素内容(不带 dnd / moveable / 选中态):基础类型走注册表 Content,容器特判(PreviewContainer) */
 function renderContent(el) {
   if (el.type === ELEMENT_TYPES.CONTAINER) {
-    return <PreviewContainer el={el} />;
+    return (
+      <ElementErrorBoundary resetKey={el.id}>
+        <PreviewContainer el={el} />
+      </ElementErrorBoundary>
+    );
   }
   const Content = getDef(el.type)?.Content;
-  return Content ? <Content el={el} styles={styles} /> : null;
+  return Content ? (
+    <ElementErrorBoundary resetKey={el.id}>
+      <Content el={el} styles={styles} />
+    </ElementErrorBoundary>
+  ) : null;
 }
 
 /** 预览态容器：渲染子元素（流式布局，无排序/拖拽） */
@@ -22,7 +31,7 @@ function PreviewContainer({ el }) {
   const children = useMemo(
     () =>
       allElements
-        .filter((c) => (c.parentId ?? null) === el.id)
+        .filter((c) => (c.parentId ?? null) === el.id && !c.hidden)
         .toSorted((a, b) => (a.z || 0) - (b.z || 0)),
     [allElements, el.id]
   );
@@ -44,19 +53,16 @@ function PreviewContainer({ el }) {
 }
 
 /** 单个预览元素：x/width 统一换算为 %（px 值除以画布尺寸），y/height 用 px */
-const PreviewElement = memo(function PreviewElement({ el, canvasWidth }) {
+const PreviewElement = memo(function PreviewElement({ el }) {
   const unit = el.unit || UNIT.PX;
-  // 运行态：x/width 一律按 % 渲染（px 时换算），实现宽度自适应
-  const xPercent = toPercent(el.x, unit, canvasWidth);
-  const wPercent = toPercent(el.width, unit, canvasWidth);
   return (
     <div
       className={styles.element}
       style={{
         position: "absolute",
-        left: `${xPercent}%`,
+        left: toCss(el.x, unit),
         top: `${el.y}px`,
-        width: `${wPercent}%`,
+        width: toCss(el.width, unit),
         height: `${el.height}px`,
         transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
       }}
@@ -77,7 +83,9 @@ function PreviewInner() {
   const canvasHeight = useAtomValue(canvasHeightAtom);
 
   const topLevel = useMemo(
-    () => elements.filter((el) => !el.parentId).toSorted((a, b) => (a.z || 0) - (b.z || 0)),
+    () => elements
+      .filter((el) => !el.parentId && !el.hidden)
+      .toSorted((a, b) => (a.z || 0) - (b.z || 0)),
     [elements]
   );
 

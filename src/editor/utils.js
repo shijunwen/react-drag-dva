@@ -67,6 +67,8 @@ export function createElement(type, x, y) {
     groupId: null,
     parentId: null, // null=画布顶层；containerId=容器内子元素
     z: 0, // 同级层叠顺序
+    locked: false, // 锁定:不可移动/缩放(仍可选中以解锁)
+    hidden: false, // 隐藏:不渲染(保留数据,可通过组件树选中后取消隐藏)
     props: { ...def.defaults.props },
   };
 }

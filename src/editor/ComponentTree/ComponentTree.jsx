@@ -59,6 +59,12 @@ export default function ComponentTree() {
             <span className={styles.treeNode}>
               {IconComponent && <IconComponent />}
               <span className={styles.treeNodeLabel}>{getElementLabel(el)}</span>
+              {el.locked ? (
+                <span className={styles.treeBadge}>锁定</span>
+              ) : null}
+              {el.hidden ? (
+                <span className={styles.treeBadge}>{el.hidden ? "隐藏" : ""}</span>
+              ) : null}
             </span>
           ),
           isLeaf: el.type !== ELEMENT_TYPES.CONTAINER,

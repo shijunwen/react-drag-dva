@@ -30,4 +30,9 @@ export {
   reorderContainerAtom,
   moveElementToContainerAtom,
   dropElementAtom,
+  clipboardAtom,
+  copySelectedAtom,
+  pasteAtom,
+  duplicateSelectedAtom,
+  nudgeSelectedAtom,
 } from "./elements";

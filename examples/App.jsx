@@ -16,9 +16,10 @@ export default function App() {
 
   return (
     <Layout style={LAYOUT_STYLE}>
-      <AppHeader />
       <Content style={{ flex: 1, overflow: "hidden", background: token.colorBg }}>
-        <Editor />
+        <Editor>
+          <AppHeader />
+        </Editor>
       </Content>
     </Layout>
   );

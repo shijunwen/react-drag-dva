@@ -71,10 +71,15 @@ export default function App() {
 | `value` | `Element[]` | 受控元素列表。提供即进入受控模式,外部变更覆盖内部 |
 | `onChange` | `(elements: Element[]) => void` | 元素发生**已提交**变更时回调(手势结束 / 增删 / 对齐 / 撤销 / 单位切换 / 属性编辑) |
 | `initialElements` | `Element[]` | 非受控模式的挂载种子(仅一次,受控模式下忽略) |
+| `children` | `ReactNode` | 顶部自定义 chrome(如工具栏),在 Editor 的 Jotai store 内渲染,可用 `useEditor()`/atoms 与本实例联动 |
+
+**实例隔离**:每个 `<Editor />` 内部自带独立 Jotai store,多个实例互不串扰。自定义工具栏等 chrome 通过 `children` 传入(在 store 内渲染),即可用 `useEditor()` 操控所属实例。
 
 **性能说明**:拖拽 / 缩放手势过程中只直接写 DOM、不触发 `onChange`,仅在手势结束等离散时机回调,因此受控模式不会影响操控流畅度。
 
 **受控约定**:`value` 内容未变时应保持引用稳定(标准 React 受控约定),否则每次新引用都会触发整体替换并清空撤销栈。
+
+**容错**:每个元素的渲染(Content)与属性面板(Props)都包裹了错误边界,单个自定义元素抛错只会显示占位,不会导致整个编辑器白屏。
 
 ## 元素数据结构
 
@@ -132,7 +137,15 @@ function Toolbar() {
 }
 ```
 
-也可直接用 atoms(需在 `Editor` 渲染树内,共享同一 Jotai store):
+上面的 `Toolbar` 通过 `children` 传入 Editor,即在其 Jotai store 内渲染:
+
+```jsx
+<Editor>
+  <Toolbar />
+</Editor>
+```
+
+也可直接用 atoms(同样需在 `Editor` 渲染树内——即作为 `children` 传入,共享同一 Jotai store):
 
 ```jsx
 import { useSetAtom, useAtomValue } from "jotai";

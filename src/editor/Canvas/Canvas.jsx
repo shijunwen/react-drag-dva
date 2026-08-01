@@ -88,6 +88,8 @@ export default function Canvas({ dndActive }) {
   const [spaceHeld, setSpaceHeld] = useState(false);
   // zoomBar 画布拖拽开关：开启后可直接拖拽平移画布（无需按住空格），默认关闭
   const [panEnabled, setPanEnabled] = useState(false);
+  const [gridSnapEnabled, setGridSnapEnabled] = useState(true);
+  const [gridSnapSize, setGridSnapSize] = useState(20);
   // 辅助线存储
   const [horizontalGuides, setHorizontalGuides] = useState([]);
   const [verticalGuides, setVerticalGuides] = useState([]);
@@ -231,13 +233,23 @@ export default function Canvas({ dndActive }) {
     }
     const onMove = (e) => {
       const rect = document.getElementById("canvas-board-el")?.getBoundingClientRect();
-      setPointerOverBoard(
+      const inBoard =
         !!rect &&
-          e.clientX >= rect.left &&
-          e.clientX <= rect.right &&
-          e.clientY >= rect.top &&
-          e.clientY <= rect.bottom,
-      );
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom;
+      // 在画板内但落在容器上时,交由容器高亮(容器是更内层放置目标),
+      // 避免画板与容器同时高亮。选择器与 onDragEnd 兜底一致。
+      const overContainer =
+        inBoard &&
+        [...document.querySelectorAll('[data-droppable-id^="container-"]')].some((el) => {
+          const r = el.getBoundingClientRect();
+          return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+        });
+      const next = inBoard && !overContainer;
+      // 仅在进出/切换时切换 state,避免指针移动时每帧重渲染
+      setPointerOverBoard((prev) => (prev === next ? prev : next));
     };
     document.addEventListener("pointermove", onMove);
     return () => {
@@ -308,7 +320,9 @@ export default function Canvas({ dndActive }) {
   // 仅渲染画布顶层元素（容器内的子元素由各自 ContainerBox 渲染）
   // 用 toSorted 保持不可变；memoize 避免每次 render（如鼠标移动）重算。
   const topLevel = useMemo(
-    () => elements.filter((el) => !el.parentId).toSorted((a, b) => (a.z || 0) - (b.z || 0)),
+    () => elements
+      .filter((el) => !el.parentId && !el.hidden)
+      .toSorted((a, b) => (a.z || 0) - (b.z || 0)),
     [elements],
   );
 
@@ -521,13 +535,18 @@ export default function Canvas({ dndActive }) {
                 />
               ))}
             </div>
-            <MoveableLayer elementRefs={elementRefs} moveableRef={moveableRef} />
+            <MoveableLayer
+              elementRefs={elementRefs}
+              moveableRef={moveableRef}
+              gridSnapEnabled={gridSnapEnabled}
+              gridSnapSize={gridSnapSize}
+            />
           </InfiniteViewer>
         </div>
       </div>
 
       {/* 缩放 + 画布尺寸控制条 */}
-      <div className={styles.zoomBar} data-zoom-bar>
+      <div className={styles.zoomBar} data-zoom-bar onPointerDownCapture={(e) => e.stopPropagation()}>
         <div className={styles.sizeGroup}>
           <CursorPos
             canvasWrapRef={canvasWrapRef}
@@ -566,6 +585,26 @@ export default function Canvas({ dndActive }) {
           {Math.round(zoom * 100)}%
         </button>
         <button type="button" className={styles.zoomBtn} onClick={zoomIn} aria-label="放大">+</button>
+        <span className={styles.divider} />
+        <label className={styles.gridSnapToggle}>
+          <input
+            type="checkbox"
+            checked={gridSnapEnabled}
+            onChange={(e) => setGridSnapEnabled(e.target.checked)}
+          />
+          网格吸附
+        </label>
+        <InputNumber
+          size="small"
+          min={4}
+          max={200}
+          step={1}
+          value={gridSnapSize}
+          onChange={(v) => setGridSnapSize(v ?? 20)}
+          disabled={!gridSnapEnabled}
+          style={{ ...INPUT_NUMBER_STYLE, width: 72 }}
+          addonAfter="px"
+        />
         <span className={styles.divider} />
         <Tooltip title={panEnabled ? "关闭画布拖拽" : "开启画布拖拽"} placement="top">
           <button

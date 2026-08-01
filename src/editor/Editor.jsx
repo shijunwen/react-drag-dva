@@ -7,7 +7,7 @@ import {
   useSensors,
   MeasuringStrategy,
 } from "@dnd-kit/core";
-import { useAtomValue } from "jotai";
+import { useAtomValue, Provider } from "jotai";
 import { useKeyPress } from "ahooks";
 import Palette from "./Palette/Palette";
 import Canvas from "./Canvas/Canvas";
@@ -45,8 +45,20 @@ const pickInnermostDroppable = ({
   return best ? [{ id: best.id }] : [];
 };
 
-export default function Editor({ value, initialElements, onChange }) {
-  const { addElement, deleteSelected, undo, redo } = useEditor();
+export default function Editor({ value, initialElements, onChange, children }) {
+  // 每个实例独立 Jotai store:避免多个 <Editor/> 共享全局默认 store 而互相串扰。
+  // children(如自定义工具栏)在 Provider 内渲染,可用 useEditor()/atoms 与本实例联动。
+  return (
+    <Provider>
+      <EditorInner value={value} initialElements={initialElements} onChange={onChange}>
+        {children}
+      </EditorInner>
+    </Provider>
+  );
+}
+
+function EditorInner({ value, initialElements, onChange, children }) {
+  const { addElement, deleteSelected, undo, redo, copySelected, paste, duplicateSelected, nudgeSelected } = useEditor();
   // 受控/非受控同步:外部 value <-> 内部 elementsAtom
   useEditorSync({ value, initialElements, onChange });
   const zoom = useAtomValue(zoomAtom);
@@ -76,6 +88,38 @@ export default function Editor({ value, initialElements, onChange }) {
   useKeyPress(
     ["ctrl.shift.z", "ctrl.y"],
     () => { if (!isEditable(document.activeElement)) redo(); },
+    { exactMatch: false },
+  );
+  // 复制 Ctrl+C
+  useKeyPress(
+    "ctrl.c",
+    () => { if (!isEditable(document.activeElement)) copySelected(); },
+    { exactMatch: false },
+  );
+  // 粘贴 Ctrl+V
+  useKeyPress(
+    "ctrl.v",
+    () => { if (!isEditable(document.activeElement)) paste(); },
+    { exactMatch: false },
+  );
+  // 复制并偏移 Ctrl+D
+  useKeyPress(
+    "ctrl.d",
+    () => { if (!isEditable(document.activeElement)) duplicateSelected(); },
+    { exactMatch: false },
+  );
+  // 方向键微调 / Shift 快速微调
+  useKeyPress(
+    ["arrowup", "arrowdown", "arrowleft", "arrowright"],
+    (e, key) => {
+      if (isEditable(document.activeElement)) return;
+      const step = e.shiftKey ? 10 : 1;
+      if (!selectedIds.length) return;
+      if (key === "arrowup") nudgeSelected({ dx: 0, dy: -step });
+      if (key === "arrowdown") nudgeSelected({ dx: 0, dy: step });
+      if (key === "arrowleft") nudgeSelected({ dx: -step, dy: 0 });
+      if (key === "arrowright") nudgeSelected({ dx: step, dy: 0 });
+    },
     { exactMatch: false },
   );
 
@@ -191,6 +235,7 @@ export default function Editor({ value, initialElements, onChange }) {
       onDragCancel={handleDragCancel}
     >
       <div className={styles.editor}>
+        {children}
         {previewMode ? (
           <div className={styles.canvasWrap}>
             <Preview />
