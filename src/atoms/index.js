@@ -1,4 +1,4 @@
-export { elementsAtom } from "./base";
+export { elementsAtom, clipboardAtom, gridSnapAtom, gridSizeAtom } from "./base";
 
 export { viewportAtom, setViewportAtom, setZoomAtom, setCanvasSizeAtom, zoomAtom, canvasWidthAtom, canvasHeightAtom } from "./viewport";
 
@@ -22,6 +22,11 @@ export {
   setElementUnitAtom,
   setElementsAtom,
   deleteSelectedAtom,
+  copySelectedAtom,
+  duplicateSelectedAtom,
+  pasteClipboardAtom,
+  toggleLockAtom,
+  toggleHiddenAtom,
   groupSelectedAtom,
   ungroupSelectedAtom,
   alignSelectedAtom,

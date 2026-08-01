@@ -5,9 +5,19 @@ import Guides from "@scena/react-guides";
 import { useDroppable } from "@dnd-kit/core";
 import { useAtomValue, useSetAtom, useStore } from "jotai";
 import { InputNumber, Tooltip } from "antd";
-import { DragOutlined } from "@ant-design/icons";
+import { DragOutlined, PartitionOutlined } from "@ant-design/icons";
 import { useEditor } from "../useEditor";
-import { viewportAtom, setViewportAtom, setZoomAtom, setCanvasSizeAtom, zoomAtom, canvasWidthAtom, canvasHeightAtom } from "@/atoms";
+import {
+  viewportAtom,
+  setViewportAtom,
+  setZoomAtom,
+  setCanvasSizeAtom,
+  zoomAtom,
+  canvasWidthAtom,
+  canvasHeightAtom,
+  gridSnapAtom,
+  gridSizeAtom,
+} from "@/atoms";
 import CanvasElement from "./CanvasElement";
 import MoveableLayer from "./MoveableLayer";
 import { MIN_ZOOM, MAX_ZOOM, ZOOM_STEP } from "../constants";
@@ -119,6 +129,10 @@ export default function Canvas({ dndActive }) {
   const zoom = useAtomValue(zoomAtom);
   const canvasWidth = useAtomValue(canvasWidthAtom);
   const canvasHeight = useAtomValue(canvasHeightAtom);
+  const gridSnap = useAtomValue(gridSnapAtom);
+  const gridSize = useAtomValue(gridSizeAtom);
+  const setGridSnap = useSetAtom(gridSnapAtom);
+  const setGridSize = useSetAtom(gridSizeAtom);
   const store = useStore();
   const setViewport = useSetAtom(setViewportAtom);
   const setZoom = useSetAtom(setZoomAtom);
@@ -578,6 +592,28 @@ export default function Canvas({ dndActive }) {
             <DragOutlined />
           </button>
         </Tooltip>
+        <Tooltip title={gridSnap ? "关闭网格吸附" : "开启网格吸附"} placement="top">
+          <button
+            type="button"
+            className={`${styles.zoomBtn}${gridSnap ? ` ${styles.zoomBtnActive}` : ""}`}
+            onClick={() => setGridSnap(!gridSnap)}
+            aria-label="网格吸附"
+            aria-pressed={gridSnap}
+          >
+            <PartitionOutlined />
+          </button>
+        </Tooltip>
+        <InputNumber
+          size="small"
+          min={5}
+          max={200}
+          step={5}
+          value={gridSize}
+          onChange={(v) => typeof v === "number" && setGridSize(v)}
+          addonAfter="px"
+          controls={false}
+          style={{ ...INPUT_NUMBER_STYLE, width: 72 }}
+        />
       </div>
     </div>
   );

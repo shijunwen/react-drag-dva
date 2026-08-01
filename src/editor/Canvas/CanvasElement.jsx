@@ -46,8 +46,9 @@ const CanvasElement = memo(function CanvasElement({
         position: "absolute",
         left: unit === "%" ? `${el.x}%` : `${el.x}px`,
         top: `${el.y}px`,
+        display: el.hidden ? "none" : undefined,
       }
-    : baseStyle;
+    : { ...baseStyle, display: el.hidden ? "none" : undefined };
 
   // 稳定 ref 回调:避免每次 render 内联新函数导致 React 先 ref(null) 再 ref(node),
   // 中间 elementRefs 短暂为空,moveable updateRect 会读到 null target(offsetWidth 报错)。

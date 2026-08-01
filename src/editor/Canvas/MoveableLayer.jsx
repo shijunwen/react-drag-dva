@@ -14,6 +14,8 @@ import {
   canvasHeightAtom,
   dropElementAtom,
   dragOverContainerIdAtom,
+  gridSnapAtom,
+  gridSizeAtom,
 } from "@/atoms";
 import { SNAP_THRESHOLD } from "../constants";
 import { pxToUnit, rectOverlapArea, findFlowInsertIndex } from "../utils";
@@ -34,6 +36,13 @@ const applyToDom = (target, patch, unit = "px") => {
   if (patch.y !== undefined) target.style.top = `${patch.y}px`;
   if (patch.width !== undefined) target.style.width = xIsPercent ? `${patch.width}%` : `${patch.width}px`;
   if (patch.height !== undefined) target.style.height = `${patch.height}px`;
+};
+
+const combineTransform = ({ translateX = 0, translateY = 0, rotation = 0 }) => {
+  const parts = [];
+  if (translateX || translateY) parts.push(`translate(${translateX}px, ${translateY}px)`);
+  if (rotation) parts.push(`rotate(${rotation}deg)`);
+  return parts.join(" ");
 };
 
 /**
@@ -109,10 +118,15 @@ function MoveableLayer({ elementRefs, moveableRef }) {
   const scrollLockRef = useRef([]); // 拖拽期间锁定的可滚祖先(用于恢复)
   const dragOverRef = useRef(null); // 当前悬停的容器 id(去重用，避免每帧写 atom 触发重渲染)
 
-  // 选中元素引用
+  // 选中元素引用，跳过隐藏 / 锁定元素，使 Moveable 只对可编辑目标生效
   const targets = selectedIds
     .map((id) => elementRefs.current.get(id))
-    .filter(Boolean);
+    .filter((node) => {
+      if (!node) return false;
+      const id = node.dataset?.id;
+      const el = id ? elementsById.get(id) : undefined;
+      return !!el && !el.hidden && !el.locked;
+    });
   const isGroup = targets.length > 1;
 
   // undo/redo 后选中元素可能已不存在，过滤无效选中
@@ -143,7 +157,7 @@ function MoveableLayer({ elementRefs, moveableRef }) {
   const elementGuidelines = useMemo(
     () =>
       elements
-        .filter((el) => (el.parentId ?? null) === parentId && !idSet.has(el.id))
+        .filter((el) => (el.parentId ?? null) === parentId && !idSet.has(el.id) && !el.hidden)
         .map((el) => elementRefs.current.get(el.id))
         .filter(Boolean),
     [elements, parentId, idSet, elementRefs],
@@ -153,6 +167,8 @@ function MoveableLayer({ elementRefs, moveableRef }) {
   const draggable = !(isGroup && isInContainer);
   const resizable = true;
   const snappable = !isInContainer;
+  const gridSnap = useAtomValue(gridSnapAtom);
+  const gridSize = useAtomValue(gridSizeAtom);
 
   // 容器 id 列表（拖拽命中测试只遍历容器，不扫描全部元素）
   const containerIds = useMemo(
@@ -257,7 +273,11 @@ function MoveableLayer({ elementRefs, moveableRef }) {
       target={isGroup ? targets : targets[0]}
       draggable={draggable}
       resizable={resizable}
+      rotatable={true}
+      rotationPosition="top"
       snappable={snappable}
+      snapGridWidth={gridSnap ? gridSize : 0}
+      snapGridHeight={gridSnap ? gridSize : 0}
       snapThreshold={SNAP_THRESHOLD}
       elementGuidelines={elementGuidelines}
       isDisplaySnapDigit
@@ -299,7 +319,11 @@ function MoveableLayer({ elementRefs, moveableRef }) {
               if (el.parentId) {
                 // 容器内：transform 悬浮（占位保留，零重渲染），落地由 onDragEnd 碰撞定归属
                 const [dx, dy] = e.dist;
-                e.target.style.transform = `translate(${dx}px, ${dy}px)`;
+                e.target.style.transform = combineTransform({
+                  translateX: dx,
+                  translateY: dy,
+                  rotation: el.rotation || 0,
+                });
                 e.target.style.zIndex = "999";
                 pendingRef.current = [];
                 updateDragOver(e.target, el);
@@ -373,6 +397,28 @@ function MoveableLayer({ elementRefs, moveableRef }) {
             }
           : undefined
       }
+      onRotate={(e) => {
+        begin();
+        const id = e.target.dataset.id;
+        const el = elementsById.get(id);
+        if (!el) return;
+        const currentRotation = Math.round(e.rotation ?? e.beforeRotation ?? 0);
+        e.target.style.transform = combineTransform({ rotation: currentRotation });
+        pendingRef.current = [{ id, patch: { rotation: currentRotation } }];
+      }}
+      onRotateEnd={commitSingle}
+      onRotateGroup={(e) => {
+        begin();
+        const rotation = Math.round(e.rotation ?? e.beforeRotation ?? 0);
+        pendingRef.current = e.events.map((ev) => {
+          const id = ev.target.dataset.id;
+          const el = elementsById.get(id);
+          if (!el) return { id, patch: {} };
+          ev.target.style.transform = combineTransform({ rotation });
+          return { id, patch: { rotation } };
+        });
+      }}
+      onRotateGroupEnd={commitGroup}
       onResize={(e) => {
         begin();
         const id = e.target.dataset.id;

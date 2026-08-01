@@ -64,6 +64,8 @@ export function createElement(type, x, y) {
     height: def.defaults.height,
     unit: UNIT.PX, // 默认 px，可切换为 %
     rotation: 0,
+    locked: false,
+    hidden: false,
     groupId: null,
     parentId: null, // null=画布顶层；containerId=容器内子元素
     z: 0, // 同级层叠顺序

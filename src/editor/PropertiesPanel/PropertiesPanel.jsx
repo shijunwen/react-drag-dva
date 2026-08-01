@@ -1,5 +1,5 @@
 import { memo, useMemo } from "react";
-import { InputNumber, Typography, Empty, Segmented } from "antd";
+import { InputNumber, Typography, Empty, Segmented, Button } from "antd";
 import { useEditor } from "../useEditor";
 import { getDef } from "../elements";
 import { getBounds } from "../utils";
@@ -85,6 +85,28 @@ const PropertiesPanel = memo(function PropertiesPanel() {
                 />
               </div>
               <NumberField label="旋转" value={single.rotation} onChange={(v) => update({ rotation: v })} onBegin={beginChange} />
+              <div className={styles.grid}>
+                <Button
+                  size="small"
+                  type={single.locked ? "primary" : "default"}
+                  onClick={() => {
+                    beginChange();
+                    update({ locked: !single.locked });
+                  }}
+                >
+                  {single.locked ? "解锁" : "锁定"}
+                </Button>
+                <Button
+                  size="small"
+                  type={single.hidden ? "primary" : "default"}
+                  onClick={() => {
+                    beginChange();
+                    update({ hidden: !single.hidden });
+                  }}
+                >
+                  {single.hidden ? "显示" : "隐藏"}
+                </Button>
+              </div>
             </div>
           </section>
 
