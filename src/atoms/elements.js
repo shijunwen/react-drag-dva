@@ -1,5 +1,5 @@
 import { atom } from "jotai";
-import { elementsAtom } from "./base";
+import { elementsAtom, clipboardAtom } from "./base";
 import { selectedIdsAtom } from "./selection";
 import { beginChangeAtom, pastAtom, futureAtom } from "./history";
 import { viewportAtom } from "./viewport";
@@ -11,6 +11,8 @@ import {
   reorderContainerChildren,
   buildChildrenMap,
   wouldCreateCycle,
+  pxToUnit,
+  genId,
 } from "@/editor/utils";
 import { UNIT } from "@/editor/constants";
 
@@ -93,6 +95,66 @@ export const deleteSelectedAtom = atom(null, (get, set) => {
   }
   set(elementsAtom, (list) => list.filter((el) => !toDelete.has(el.id)));
   set(selectedIdsAtom, []);
+});
+
+export const copySelectedAtom = atom(null, (get, set) => {
+  const ids = get(selectedIdsAtom);
+  if (!ids.length) return;
+  const els = get(elementsAtom);
+  const idSet = new Set(ids);
+  const selection = els.filter((el) => idSet.has(el.id));
+  set(clipboardAtom, selection.map((el) => ({ ...el })));
+});
+
+const duplicateElements = (canvasWidth, items) => {
+  return items.map((el) => {
+    const offsetX = el.unit === UNIT.PERCENT ? pxToUnit(20, UNIT.PERCENT, canvasWidth) : 20;
+    return {
+      ...el,
+      id: genId(),
+      x: el.unit === UNIT.PERCENT ? Math.min(100 - el.width, el.x + offsetX) : el.x + 20,
+      y: el.y + 20,
+      groupId: null,
+    };
+  });
+};
+
+export const duplicateSelectedAtom = atom(null, (get, set) => {
+  const ids = get(selectedIdsAtom);
+  if (!ids.length) return;
+  const els = get(elementsAtom);
+  const canvasWidth = get(viewportAtom).canvasWidth;
+  const idSet = new Set(ids);
+  const duplicated = duplicateElements(canvasWidth, els.filter((el) => idSet.has(el.id)));
+  if (!duplicated.length) return;
+  set(beginChangeAtom);
+  set(elementsAtom, (list) => [...list, ...duplicated]);
+  set(selectedIdsAtom, duplicated.map((el) => el.id));
+});
+
+export const pasteClipboardAtom = atom(null, (get, set) => {
+  const clipboard = get(clipboardAtom);
+  if (!clipboard.length) return;
+  const canvasWidth = get(viewportAtom).canvasWidth;
+  const duplicated = duplicateElements(canvasWidth, clipboard);
+  if (!duplicated.length) return;
+  set(beginChangeAtom);
+  set(elementsAtom, (list) => [...list, ...duplicated]);
+  set(selectedIdsAtom, duplicated.map((el) => el.id));
+});
+
+export const toggleLockAtom = atom(null, (get, set, id) => {
+  const el = get(elementsAtom).find((item) => item.id === id);
+  if (!el) return;
+  set(beginChangeAtom);
+  set(elementsAtom, (list) => patchElement(list, id, { locked: !el.locked }));
+});
+
+export const toggleHiddenAtom = atom(null, (get, set, id) => {
+  const el = get(elementsAtom).find((item) => item.id === id);
+  if (!el) return;
+  set(beginChangeAtom);
+  set(elementsAtom, (list) => patchElement(list, id, { hidden: !el.hidden }));
 });
 
 /* ----------------------------- 分组 / 合并 ----------------------------- */

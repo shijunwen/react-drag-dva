@@ -17,7 +17,8 @@ import { Preview } from "./Preview";
 import { useEditor } from "./useEditor";
 import { useEditorSync } from "./useEditorSync";
 import { PALETTE_ITEM_MAP } from "./elements";
-import { zoomAtom, selectedIdsAtom, previewModeAtom } from "@/atoms";
+import { zoomAtom, selectedIdsAtom, previewModeAtom, canvasWidthAtom, canvasHeightAtom } from "@/atoms";
+import { pxToUnit } from "./utils";
 import styles from "./Editor.module.less";
 
 const CONTAINER_PREFIX = "container-";
@@ -46,11 +47,24 @@ const pickInnermostDroppable = ({
 };
 
 export default function Editor({ value, initialElements, onChange }) {
-  const { addElement, deleteSelected, undo, redo } = useEditor();
+  const {
+    addElement,
+    deleteSelected,
+    undo,
+    redo,
+    copySelected,
+    pasteClipboard,
+    duplicateSelected,
+    updateElements,
+    beginChange,
+    selectedElements,
+  } = useEditor();
   // 受控/非受控同步:外部 value <-> 内部 elementsAtom
   useEditorSync({ value, initialElements, onChange });
   const zoom = useAtomValue(zoomAtom);
   const selectedIds = useAtomValue(selectedIdsAtom);
+  const canvasWidth = useAtomValue(canvasWidthAtom);
+  const canvasHeight = useAtomValue(canvasHeightAtom);
   const previewMode = useAtomValue(previewModeAtom);
 
   // 快捷键：Delete / Backspace 删除选中元素（输入框聚焦时不触发）
@@ -78,7 +92,74 @@ export default function Editor({ value, initialElements, onChange }) {
     () => { if (!isEditable(document.activeElement)) redo(); },
     { exactMatch: false },
   );
-
+ 
+  const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+  const nudge = (dx, dy) => {
+    if (!selectedElements.length || isEditable(document.activeElement)) return;
+    const patches = selectedElements
+      .filter((el) => !el.locked && !el.parentId)
+      .map((el) => {
+        const unit = el.unit || "px";
+        const isPercent = unit === "%";
+        const x = isPercent
+          ? clamp(
+              +(el.x + pxToUnit(dx, unit, canvasWidth)).toFixed(2),
+              0,
+              Math.max(0, 100 - el.width),
+            )
+          : clamp(el.x + dx, 0, Math.max(0, canvasWidth - el.width));
+        const y = clamp(el.y + dy, 0, Math.max(0, canvasHeight - el.height));
+        return { id: el.id, patch: { x, y } };
+      });
+    if (!patches.length) return;
+    beginChange();
+    updateElements(patches);
+  };
+ 
+  useKeyPress(
+    ["arrowup", "arrowdown", "arrowleft", "arrowright"],
+    (e) => {
+      if (isEditable(document.activeElement)) return;
+      e.preventDefault();
+      const step = e.shiftKey ? 10 : 1;
+      if (e.key === "ArrowUp") nudge(0, -step);
+      else if (e.key === "ArrowDown") nudge(0, step);
+      else if (e.key === "ArrowLeft") nudge(-step, 0);
+      else if (e.key === "ArrowRight") nudge(step, 0);
+    },
+    { exactMatch: true },
+  );
+ 
+  useKeyPress(
+    "ctrl.c",
+    (e) => {
+      if (isEditable(document.activeElement)) return;
+      e.preventDefault();
+      copySelected();
+    },
+    { exactMatch: false },
+  );
+ 
+  useKeyPress(
+    "ctrl.v",
+    (e) => {
+      if (isEditable(document.activeElement)) return;
+      e.preventDefault();
+      pasteClipboard();
+    },
+    { exactMatch: false },
+  );
+ 
+  useKeyPress(
+    "ctrl.d",
+    (e) => {
+      if (isEditable(document.activeElement)) return;
+      e.preventDefault();
+      duplicateSelected();
+    },
+    { exactMatch: false },
+  );
+ 
   const [activeType, setActiveType] = useState(null);
   const pointerRef = useRef({ x: 0, y: 0 });
 

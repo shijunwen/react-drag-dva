@@ -22,7 +22,7 @@ function PreviewContainer({ el }) {
   const children = useMemo(
     () =>
       allElements
-        .filter((c) => (c.parentId ?? null) === el.id)
+        .filter((c) => (c.parentId ?? null) === el.id && !c.hidden)
         .toSorted((a, b) => (a.z || 0) - (b.z || 0)),
     [allElements, el.id]
   );
@@ -59,6 +59,7 @@ const PreviewElement = memo(function PreviewElement({ el, canvasWidth }) {
         width: `${wPercent}%`,
         height: `${el.height}px`,
         transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
+        display: el.hidden ? "none" : undefined,
       }}
     >
       {renderContent(el)}
@@ -77,7 +78,10 @@ function PreviewInner() {
   const canvasHeight = useAtomValue(canvasHeightAtom);
 
   const topLevel = useMemo(
-    () => elements.filter((el) => !el.parentId).toSorted((a, b) => (a.z || 0) - (b.z || 0)),
+    () =>
+      elements
+        .filter((el) => !el.parentId && !el.hidden)
+        .toSorted((a, b) => (a.z || 0) - (b.z || 0)),
     [elements]
   );
 

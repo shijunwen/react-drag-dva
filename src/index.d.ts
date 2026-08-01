@@ -41,6 +41,10 @@ export interface EditorElement {
   unit: Unit;
   /** 旋转角度 */
   rotation: number;
+  /** 锁定后无法移动/缩放 */
+  locked: boolean;
+  /** 隐藏元素 */
+  hidden: boolean;
   /** 分组标识,null 表示未分组 */
   groupId: string | null;
   /** null=画布顶层; containerId=容器内子元素 */
@@ -147,6 +151,11 @@ export interface useEditorReturn {
   setElementUnit: (args: { id: string; unit: Unit }) => void;
   beginChange: () => void;
   deleteSelected: () => void;
+  copySelected: () => void;
+  duplicateSelected: () => void;
+  pasteClipboard: () => void;
+  toggleLock: (id: string) => void;
+  toggleHidden: (id: string) => void;
   select: (ids: string[]) => void;
   toggleSelect: (id: string) => void;
   clearSelection: () => void;
@@ -181,6 +190,11 @@ export const updateElementsAtom: WritableAtom<
 >;
 export const setElementUnitAtom: WritableAtom<null, [{ id: string; unit: Unit }]>;
 export const deleteSelectedAtom: WritableAtom<null, []>;
+export const copySelectedAtom: WritableAtom<null, []>;
+export const duplicateSelectedAtom: WritableAtom<null, []>;
+export const pasteClipboardAtom: WritableAtom<null, []>;
+export const toggleLockAtom: WritableAtom<null, [string]>;
+export const toggleHiddenAtom: WritableAtom<null, [string]>;
 export const groupSelectedAtom: WritableAtom<null, []>;
 export const ungroupSelectedAtom: WritableAtom<null, []>;
 export const alignSelectedAtom: WritableAtom<null, [AlignDir]>;
@@ -200,11 +214,12 @@ export const beginChangeAtom: WritableAtom<null, []>;
 export const selectAtom: WritableAtom<null, [string[]]>;
 export const toggleSelectAtom: WritableAtom<null, [string]>;
 export const clearSelectionAtom: WritableAtom<null, []>;
+export const gridSnapAtom: PrimitiveAtom<boolean>;
+export const gridSizeAtom: PrimitiveAtom<number>;
 export const setViewportAtom: WritableAtom<null, [Partial<Viewport>]>;
 export const setZoomAtom: WritableAtom<null, [number]>;
 export const setCanvasSizeAtom: WritableAtom<null, [{ width: number; height: number }]>;
 export const setPreviewModeAtom: WritableAtom<null, [boolean]>;
-
 /* ============================ 工具函数 ============================ */
 
 export function createElement(type: string, x?: number, y?: number): EditorElement;

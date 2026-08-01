@@ -8,12 +8,14 @@ import {
   ClearOutlined,
   UndoOutlined,
   RedoOutlined,
+  CopyOutlined,
+  SnippetsOutlined,
   EyeOutlined,
   EditOutlined,
 } from "@ant-design/icons";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useEditor } from "@/editor/useEditor";
-import { previewModeAtom, setPreviewModeAtom } from "@/atoms";
+import { clipboardAtom, previewModeAtom, setPreviewModeAtom } from "@/atoms";
 import styles from "./AppHeader.module.less";
 
 const { Header } = Layout;
@@ -34,6 +36,9 @@ function AppHeaderInner() {
     canUndo,
     canRedo,
     deleteSelected,
+    copySelected,
+    pasteClipboard,
+    duplicateSelected,
     groupSelected,
     ungroupSelected,
     alignSelected,
@@ -42,6 +47,7 @@ function AppHeaderInner() {
     redo,
   } = useEditor();
   const previewMode = useAtomValue(previewModeAtom);
+  const clipboard = useAtomValue(clipboardAtom);
   const setPreviewMode = useSetAtom(setPreviewModeAtom);
 
   const canGroup = selectedIds.length >= 2;
@@ -133,7 +139,35 @@ function AppHeaderInner() {
                 对齐
               </Button>
             </Dropdown>
-
+ 
+            <Tooltip title="复制" placement="bottom">
+              <Button
+                type="text"
+                icon={<CopyOutlined />}
+                disabled={!selectedIds.length}
+                onClick={copySelected}
+                className={styles.iconBtn}
+              />
+            </Tooltip>
+            <Tooltip title="粘贴" placement="bottom">
+              <Button
+                type="text"
+                icon={<SnippetsOutlined />}
+                disabled={!clipboard.length}
+                onClick={pasteClipboard}
+                className={styles.iconBtn}
+              />
+            </Tooltip>
+            <Tooltip title="克隆" placement="bottom">
+              <Button
+                type="text"
+                icon={<CopyOutlined />}
+                disabled={!selectedIds.length}
+                onClick={duplicateSelected}
+                className={styles.iconBtn}
+              />
+            </Tooltip>
+ 
             <Divider orientation="vertical" className={styles.divider} />
 
             <Tooltip title="删除选中" placement="bottom">
