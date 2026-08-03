@@ -12,6 +12,7 @@ import {
   buildChildrenMap,
   wouldCreateCycle,
   genId,
+  cloneProps,
 } from "@/editor/utils";
 import { UNIT } from "@/editor/constants";
 
@@ -200,7 +201,7 @@ const cloneElements = (elements, allElements) => {
       y: (e.y || 0) + DUPE_OFFSET,
       z,
       groupId: ng,
-      props: { ...e.props },
+      props: cloneProps(e.props),
     };
   });
 };

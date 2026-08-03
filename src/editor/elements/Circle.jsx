@@ -1,6 +1,6 @@
 import { AimOutlined } from "@ant-design/icons";
 import { ELEMENT_TYPES } from "./types";
-import { ShapeContent, FillProps } from "./shared";
+import { ShapeContent } from "./shared";
 
 function CircleContent({ el, styles }) {
   return <ShapeContent el={el} styles={styles} radius="50%" />;
@@ -11,6 +11,6 @@ export default {
   label: "圆形",
   icon: AimOutlined,
   defaults: { width: 100, height: 100, props: { fill: "#10b981" } },
+  inspector: [{ key: "fill", label: "填充颜色", type: "color" }],
   Content: CircleContent,
-  Props: FillProps,
 };

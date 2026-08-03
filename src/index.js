@@ -11,6 +11,7 @@ import "./editor/tokens.less";
 
 // 主组件
 export { default as Editor } from "./editor/Editor";
+export { default as DraggableElement } from "./editor/DraggableElement";
 export { Preview } from "./editor/Preview";
 
 // 编程式访问
@@ -64,6 +65,7 @@ export {
   PALETTE_ITEMS,
   PALETTE_ITEM_MAP,
   ELEMENT_ICONS,
+  registerElement,
 } from "./editor/elements";
 
 // 工具函数

@@ -17,6 +17,7 @@ import { Preview } from "./Preview";
 import { useEditor } from "./useEditor";
 import { useEditorSync } from "./useEditorSync";
 import { PALETTE_ITEM_MAP } from "./elements";
+import { EditorPresenceContext } from "./editorPresence";
 import { zoomAtom, selectedIdsAtom, previewModeAtom } from "@/atoms";
 import styles from "./Editor.module.less";
 
@@ -48,11 +49,14 @@ const pickInnermostDroppable = ({
 export default function Editor({ value, initialElements, onChange, children }) {
   // 每个实例独立 Jotai store:避免多个 <Editor/> 共享全局默认 store 而互相串扰。
   // children(如自定义工具栏)在 Provider 内渲染,可用 useEditor()/atoms 与本实例联动。
+  // EditorPresenceContext 标记"已在 <Editor> 内",供 <DraggableElement> 等扩展组件自检。
   return (
     <Provider>
-      <EditorInner value={value} initialElements={initialElements} onChange={onChange}>
-        {children}
-      </EditorInner>
+      <EditorPresenceContext.Provider value={true}>
+        <EditorInner value={value} initialElements={initialElements} onChange={onChange}>
+          {children}
+        </EditorInner>
+      </EditorPresenceContext.Provider>
     </Provider>
   );
 }

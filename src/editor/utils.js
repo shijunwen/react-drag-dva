@@ -6,6 +6,18 @@ let seed = 0;
 export const genId = (prefix = "el") => `${prefix}_${Date.now().toString(36)}_${(seed++).toString(36)}`;
 
 /**
+ * 深拷贝元素 props:避免 defaults.props 中的嵌套对象在多个实例间共享引用,
+ * 否则误改一个实例的嵌套字段会污染所有同类型实例(含复制出来的实例)。
+ * 优先 structuredClone(保留 Date/Map 等),环境不支持时降级 JSON。
+ */
+export const cloneProps = (props) =>
+  props === undefined || props === null
+    ? {}
+    : typeof structuredClone === "function"
+      ? structuredClone(props)
+      : JSON.parse(JSON.stringify(props));
+
+/**
  * 将带单位的值换算为百分比数值（0~100）。
  * px 值除以 canvasSize 换算；% 值直接返回。
  * @param {number} value - 值
@@ -69,7 +81,7 @@ export function createElement(type, x, y) {
     z: 0, // 同级层叠顺序
     locked: false, // 锁定:不可移动/缩放(仍可选中以解锁)
     hidden: false, // 隐藏:不渲染(保留数据,可通过组件树选中后取消隐藏)
-    props: { ...def.defaults.props },
+    props: cloneProps(def.defaults.props),
   };
 }
 

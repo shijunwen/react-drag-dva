@@ -2,6 +2,7 @@ import { memo, useMemo } from "react";
 import { InputNumber, Typography, Empty, Segmented, Switch } from "antd";
 import { useEditor } from "../useEditor";
 import { getDef } from "../elements";
+import SchemaProps from "../SchemaProps";
 import ElementErrorBoundary from "../ElementErrorBoundary";
 import { getBounds } from "../utils";
 import styles from "./PropertiesPanel.module.less";
@@ -52,8 +53,11 @@ const PropertiesPanel = memo(function PropertiesPanel() {
     reorderZ,
   } = useEditor();
   const single = selectedElements.length === 1 ? selectedElements[0] : null;
-  // 类型专属属性编辑器(从元素注册表取,无则不渲染该区块内容)
-  const TypePropsComp = single ? getDef(single.type)?.Props : null;
+  // 类型专属属性编辑器:优先自定义 Props;否则回退到 inspector schema 自动生成;都没有则不渲染
+  const def = single ? getDef(single.type) : null;
+  const TypePropsComp = single
+    ? def?.Props ?? (def?.inspector?.length ? SchemaProps : null)
+    : null;
   const bounds = useMemo(
     () => (selectedElements.length > 1 ? getBounds(selectedElements) : null),
     [selectedElements]

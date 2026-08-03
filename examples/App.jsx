@@ -1,6 +1,7 @@
 import { Layout, theme, message } from "antd";
 import { useMount } from "ahooks";
 import { AppHeader } from "@/components/Layout";
+import { CustomElements } from "./CustomElements";
 import Editor from "@/editor/Editor";
 
 const { Content } = Layout;
@@ -19,6 +20,7 @@ export default function App() {
       <Content style={{ flex: 1, overflow: "hidden", background: token.colorBg }}>
         <Editor>
           <AppHeader />
+          <CustomElements />
         </Editor>
       </Content>
     </Layout>

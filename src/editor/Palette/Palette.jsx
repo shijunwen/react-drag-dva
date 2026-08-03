@@ -1,6 +1,6 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useSyncExternalStore } from "react";
 import { useDraggable } from "@dnd-kit/core";
-import { PALETTE_ITEMS, ELEMENT_ICONS } from "../elements";
+import { PALETTE_ITEMS, ELEMENT_ICONS, subscribeRegistry, getRegistryVersion } from "../elements";
 import styles from "./Palette.module.less";
 
 // 提升到模块作用域：避免每次 render 产生新 style 引用
@@ -25,13 +25,15 @@ const PaletteItem = memo(function PaletteItem({ item }) {
       {...listeners}
       {...attributes}
     >
-      <Icon className={styles.icon} />
+      {Icon ? <Icon className={styles.icon} /> : null}
       <span>{item.label}</span>
     </button>
   );
 });
 
 export default function Palette() {
+  // 订阅注册表版本:registerElement 注册新类型时,<Palette> 重渲染以展示它们
+  useSyncExternalStore(subscribeRegistry, getRegistryVersion);
   return (
     <div className={styles.palette}>
       <span className={styles.title}>组件</span>
