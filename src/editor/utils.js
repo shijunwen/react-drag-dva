@@ -78,6 +78,7 @@ export function createElement(type, x, y) {
     rotation: 0,
     groupId: null,
     parentId: null, // null=画布顶层；containerId=容器内子元素
+    templateId: null, // 所属模板 id(由 addElement 赋值;null 兜底为默认模板)
     z: 0, // 同级层叠顺序
     locked: false, // 锁定:不可移动/缩放(仍可选中以解锁)
     hidden: false, // 隐藏:不渲染(保留数据,可通过组件树选中后取消隐藏)
@@ -126,6 +127,33 @@ export function expandGroupSelection(elements, ids) {
   return [...expanded];
 }
 
+/**
+ * 计算选中元素所属分组的全部成员 id 集合。
+ * 选中某分组任一成员时,整组成员都视为「分组选中」(高亮/一起操作)。
+ * @param {object[]} elements - 全部元素
+ * @param {string[]} selectedIds - 当前选中的元素 id
+ * @returns {Set<string>} 分组成员 id 集合
+ */
+export const buildGroupedIds = (elements, selectedIds) => {
+  const selectedSet = new Set(selectedIds);
+  const selectedGroupIds = new Set();
+  for (const e of elements) {
+    if (e.groupId && selectedSet.has(e.id)) selectedGroupIds.add(e.groupId);
+  }
+  if (!selectedGroupIds.size) return new Set();
+  const grouped = new Set();
+  for (const e of elements) {
+    if (e.groupId && selectedGroupIds.has(e.groupId)) grouped.add(e.id);
+  }
+  return grouped;
+};
+
+/** 判断元素是否为可编辑表单控件(快捷键在此类元素聚焦时应放行原生行为) */
+export const isEditable = (el) => {
+  const tag = el?.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || el?.isContentEditable;
+};
+
 /** 不可变更新：替换指定 id 的元素 */
 export const patchElement = (elements, id, patch) =>
   elements.map((el) => (el.id === id ? { ...el, ...patch, props: patch.props ? { ...el.props, ...patch.props } : el.props } : el));
@@ -157,6 +185,28 @@ export const reorderContainerChildren = (elements, parentId, newOrder) => {
     return z !== undefined ? { ...el, z } : el;
   });
 };
+
+/**
+ * 克隆一组元素到新模板:新 id、新 templateId、重映射 parentId/groupId、
+ * 保留 z/unit/rotation/locked/hidden,x/y 原样(不同模板不重叠)。
+ * 用于「复制模板」。输入 elements 须已限定在单一模板内。
+ */
+export function cloneElementsForTemplate(elements, newTemplateId) {
+  const idMap = new Map();
+  const groupIdMap = new Map();
+  for (const e of elements) {
+    idMap.set(e.id, genId());
+    if (e.groupId && !groupIdMap.has(e.groupId)) groupIdMap.set(e.groupId, genId("grp"));
+  }
+  return elements.map((e) => ({
+    ...e,
+    id: idMap.get(e.id),
+    templateId: newTemplateId,
+    parentId: e.parentId ? (idMap.get(e.parentId) ?? null) : null,
+    groupId: e.groupId ? groupIdMap.get(e.groupId) : null,
+    props: cloneProps(e.props),
+  }));
+}
 
 /** parentId -> children[] 索引（null 键为顶层），用于 O(1) 子元素查找 */
 export const buildChildrenMap = (elements) => {
@@ -199,6 +249,30 @@ export const rectOverlapArea = (a, b) => {
   const ix = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left));
   const iy = Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
   return ix * iy;
+};
+
+/**
+ * 在一组 DOM 元素中,找到包含指定点且面积最小(最内层)的元素。
+ * 用于拖放命中测试:画板/容器嵌套时取最内层,与 pickInnermostDroppable 同义。
+ * @param {Iterable<HTMLElement>} els - 候选 DOM 元素(NodeList/Array 均可)
+ * @param {number} x - 屏幕坐标 x(clientX)
+ * @param {number} y - 屏幕坐标 y(clientY)
+ * @returns {HTMLElement|null}
+ */
+export const findSmallestHit = (els, x, y) => {
+  let best = null;
+  let bestArea = Infinity;
+  for (const el of els) {
+    const r = el.getBoundingClientRect();
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+      const area = r.width * r.height;
+      if (area < bestArea) {
+        bestArea = area;
+        best = el;
+      }
+    }
+  }
+  return best;
 };
 
 /**

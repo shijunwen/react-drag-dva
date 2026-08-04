@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState, useEffect } from "react";
+import { useMemo, useCallback } from "react";
 import { Tree, Empty } from "antd";
 import { useAtomValue, useSetAtom } from "jotai";
 import {
@@ -7,166 +7,91 @@ import {
   selectAtom,
   reorderContainerAtom,
   moveElementToContainerAtom,
+  dropElementAtom,
+  templatesAtom,
+  setActiveTemplateAtom,
 } from "@/atoms";
-import { ELEMENT_TYPES, PALETTE_ITEM_MAP, ELEMENT_ICONS } from "../elements";
+import { ELEMENT_ICONS } from "../elements";
+import { useTreeData } from "./hooks/useTreeData";
+import { useTreeDnd } from "./hooks/useTreeDnd";
 import styles from "./ComponentTree.module.less";
 
-// 获取元素名称
-const getElementLabel = (element) => {
-  const item = PALETTE_ITEM_MAP[element.type];
-  return item?.label || element.type;
-};
+/**
+ * 纯数据节点 -> antd Tree 节点(带 JSX title)。展示逻辑:图标/徽标/标签。
+ * setActiveTemplate 为稳定 atom setter,作参数传入避免闭包到模块级。
+ */
+function toAntdNode(node, setActiveTemplate) {
+  // 模板节点
+  if (node.templateId !== undefined) {
+    return {
+      key: node.key,
+      title: (
+        <span
+          className={styles.treeNode}
+          onClick={() => setActiveTemplate(node.templateId)}
+          role="button"
+          tabIndex={0}
+        >
+          <span className={styles.treeNodeLabel}>{node.name}</span>
+          <span className={styles.treeBadge}>{node.count}</span>
+        </span>
+      ),
+      isLeaf: false,
+      selectable: false,
+      children: node.children?.map((c) => toAntdNode(c, setActiveTemplate)),
+    };
+  }
+  // 元素节点
+  const Icon = ELEMENT_ICONS[node.iconType];
+  return {
+    key: node.key,
+    title: (
+      <span className={styles.treeNode}>
+        {Icon && <Icon />}
+        <span className={styles.treeNodeLabel}>{node.label}</span>
+        {node.locked ? <span className={styles.treeBadge}>锁定</span> : null}
+        {node.hidden ? <span className={styles.treeBadge}>隐藏</span> : null}
+      </span>
+    ),
+    isLeaf: !node.isContainer,
+    children: node.isContainer
+      ? node.children?.map((c) => toAntdNode(c, setActiveTemplate))
+      : undefined,
+  };
+}
 
+/**
+ * 组件树。树数据构建见 useTreeData,拖放落点逻辑见 useTreeDnd。
+ * 本组件只负责选中/渲染。
+ */
 export default function ComponentTree() {
   const elements = useAtomValue(elementsAtom);
+  const templates = useAtomValue(templatesAtom);
   const selectedIds = useAtomValue(selectedIdsAtom);
   const select = useSetAtom(selectAtom);
   const reorderContainer = useSetAtom(reorderContainerAtom);
   const moveElementToContainer = useSetAtom(moveElementToContainerAtom);
-  const [expandedKeys, setExpandedKeys] = useState([]);
+  const dropElement = useSetAtom(dropElementAtom);
+  const setActiveTemplate = useSetAtom(setActiveTemplateAtom);
 
-  // 构建树形结构
-  const { treeData, expandedKeys: defaultExpandedKeys } = useMemo(() => {
-    // 先按 parentId 分组
-    const childrenMap = new Map();
+  const { treeNodes, expandedKeys, handleExpand } = useTreeData(elements, templates);
+  const handleDrop = useTreeDnd({ elements, reorderContainer, moveElementToContainer, dropElement });
 
-    elements.forEach((el) => {
-      const parentId = el.parentId ?? null;
-      if (!childrenMap.has(parentId)) {
-        childrenMap.set(parentId, []);
+  const handleSelect = useCallback(
+    (selectedKeys, info) => {
+      if (info.selected && selectedKeys.length > 0) {
+        select(selectedKeys);
+      } else if (!info.selected && selectedKeys.length === 0) {
+        select([]);
       }
-      childrenMap.get(parentId).push(el);
-    });
+    },
+    [select],
+  );
 
-    // 对每个分组排序
-    childrenMap.forEach((children) => {
-      children.sort((a, b) => (a.z || 0) - (b.z || 0));
-    });
-
-    const allContainerIds = [];
-
-    // 递归构建树
-    const buildTree = (parentId = null) => {
-      const children = childrenMap.get(parentId) || [];
-      return children.map((el) => {
-        const IconComponent = ELEMENT_ICONS[el.type];
-        if (el.type === ELEMENT_TYPES.CONTAINER) {
-          allContainerIds.push(el.id);
-        }
-        return {
-          key: el.id,
-          title: (
-            <span className={styles.treeNode}>
-              {IconComponent && <IconComponent />}
-              <span className={styles.treeNodeLabel}>{getElementLabel(el)}</span>
-              {el.locked ? (
-                <span className={styles.treeBadge}>锁定</span>
-              ) : null}
-              {el.hidden ? (
-                <span className={styles.treeBadge}>{el.hidden ? "隐藏" : ""}</span>
-              ) : null}
-            </span>
-          ),
-          isLeaf: el.type !== ELEMENT_TYPES.CONTAINER,
-          children: el.type === ELEMENT_TYPES.CONTAINER ? buildTree(el.id) : undefined,
-        };
-      });
-    };
-
-    return {
-      treeData: buildTree(null),
-      expandedKeys: allContainerIds,
-    };
-  }, [elements]);
-
-  // 仅当容器集合变化时重置展开:elements 频繁变更(拖拽/编辑)但容器集合不变时,
-  // defaultExpandedKeys 仍是新数组引用--旧写法每次都 setExpandedKeys,触发多余 Tree 重渲染。
-  const containerIdsKey = defaultExpandedKeys.join("\n");
-  useEffect(() => {
-    setExpandedKeys(defaultExpandedKeys);
-    // 依赖容器 id 签名而非数组引用;defaultExpandedKeys 与其在同一次 render 计算,一致
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [containerIdsKey]);
-
-  const handleSelect = useCallback((selectedKeys, info) => {
-    if (info.selected && selectedKeys.length > 0) {
-      select(selectedKeys);
-    } else if (!info.selected && selectedKeys.length === 0) {
-      select([]);
-    }
-  }, [select]);
-
-  const handleDrop = useCallback((info) => {
-    const { node, dragNode, dropPosition, dropToGap } = info;
-
-    // 获取 key - 先尝试 eventKey，再尝试 key
-    const getNodeKey = (n) => n?.eventKey ?? n?.key;
-
-    const dragId = String(getNodeKey(dragNode));
-    const dropId = String(getNodeKey(node));
-
-    if (!dragId || !dropId || dragId === dropId) return;
-
-    const dragElement = elements.find((el) => el.id === dragId);
-    const dropElement = elements.find((el) => el.id === dropId);
-
-    if (!dragElement || !dropElement) return;
-
-    // info.dropPosition 是「绝对插入位置」，需用 node.pos 还原为相对落点：
-    // -1 = 节点上方间隙(before)，0 = 落入节点内部，1 = 节点下方间隙(after)
-    const posArr = String(node.pos ?? "").split("-");
-    const relPosition = dropPosition - Number(posArr[posArr.length - 1]);
-
-    // 落到容器节点上
-    if (!dropToGap && dropElement.type === ELEMENT_TYPES.CONTAINER) {
-      const targetParentId = dropId;
-      if ((dragElement.parentId ?? null) !== targetParentId) {
-        // 从外部拖入：移入该容器
-        moveElementToContainer({
-          elementId: dragId,
-          targetContainerId: targetParentId,
-        });
-      } else {
-        // 已在容器内且拖到容器节点上：视作排到容器顶部（放在第一个子元素前面）
-        const containerChildren = elements
-          .filter((el) => (el.parentId ?? null) === targetParentId)
-          .toSorted((a, b) => (a.z || 0) - (b.z || 0));
-        const firstChild = containerChildren[0];
-        if (firstChild && firstChild.id !== dragId) {
-          reorderContainer({
-            parentId: targetParentId,
-            activeId: dragId,
-            overId: firstChild.id,
-            position: "left",
-          });
-        }
-      }
-      return;
-    }
-
-    const dragParentId = dragElement.parentId ?? null;
-    const dropParentId = dropElement.parentId ?? null;
-
-    if (dragParentId === dropParentId) {
-      // 同一父级下排序
-      reorderContainer({
-        parentId: dragParentId,
-        activeId: dragId,
-        overId: dropId,
-        position: relPosition < 0 ? "left" : "right",
-      });
-    } else {
-      // 跨容器：移入目标所在父级
-      moveElementToContainer({
-        elementId: dragId,
-        targetContainerId: dropParentId,
-      });
-    }
-  }, [elements, reorderContainer, moveElementToContainer]);
-
-  const handleExpand = useCallback((newExpandedKeys) => {
-    setExpandedKeys(newExpandedKeys);
-  }, []);
+  const treeData = useMemo(
+    () => treeNodes.map((node) => toAntdNode(node, setActiveTemplate)),
+    [treeNodes, setActiveTemplate],
+  );
 
   return (
     <div className={styles.panel}>

@@ -67,7 +67,19 @@ A container is an element `type: container` with `props: {}`. `ContainerBox`:
 - Path alias `@` → `src/` (in `vite.config.js` and `.eslintrc.cjs`).
 - `src/editor/elements/`: element-type **registry** (component-library style). Each type is a self-contained definition `{ type, label, icon, defaults, Content, Props }` (one file per type: `Text.jsx`, `Rect.jsx`, ...; `Container.js` has `Content: null`/`Props: null` since it's rendered specially). `index.js` aggregates them and derives `ELEMENT_TYPES`, `PALETTE_ITEMS`, `PALETTE_ITEM_MAP`, `ELEMENT_ICONS`, `getDef(type)`. `Content`/`Props` are module-level components that receive `styles` from the caller (CanvasElement/Preview inject their own CSS module; PropertiesPanel injects panel styles), so editor and preview share one renderer per type. **Adding a type = one new file + one line in `index.js`** — no switch statements to touch.
 - `src/editor/constants.js`: canvas/zoom/snap config only (`UNIT`, `CANVAS_WIDTH/HEIGHT`, `MIN_ZOOM`/`MAX_ZOOM`/`ZOOM_STEP`, `SNAP_THRESHOLD`). Element-type metadata lives in `elements/`, not here.
-- `src/editor/utils.js`: pure helpers (`createElement`, `getBounds`, `expandGroupSelection`, `patchElement`/`patchElements`, `toPercent`/`pxToUnit`, `genId`).
+- `src/editor/utils.js`: pure helpers (`createElement`, `getBounds`, `expandGroupSelection`, `buildGroupedIds`, `findSmallestHit`, `patchElement`/`patchElements`, `toPercent`/`pxToUnit`, `genId`).
+
+### 目录结构约定
+
+特性文件夹（`Canvas/`、`ComponentTree/`、`PropertiesPanel/`、`Palette/`）自包含,按职责分层:
+- `<Feature>/hooks/` - 该特性的逻辑 hook(如 `Canvas/hooks/useMoveableGestures`、`ComponentTree/hooks/useTreeData`)。
+- `<Feature>/components/` - 该特性的展示型子组件(如 `Canvas/components/Board`)。
+- `<Feature>/` 扁平 - 纯工具/常量(如 `Canvas/moveableHelpers.js`、`Canvas/canvasConstants.js`、`Canvas/dropLogic.js`)+ 特性入口 + 直接子组件。
+- 子目录仅在该特性文件变多时创建;单文件特性(如 `Palette/`)保持扁平。
+
+`src/editor/` 根级放跨特性共享物:`Editor.jsx`(壳,及其私有 hook `useEditorShortcuts`/`usePaletteDnd`)+ 共享 hook(`useEditor`/`useEditorSync`)+ 共享 utils(`utils.js`/`constants.js`)+ 独立组件(`Preview`/`DraggableElement`/`SchemaProps` 等)。
+
+**逻辑/展示分离**:业务逻辑(handlers/effects/纯函数)进 hook 或 utils,组件只负责渲染 + 调用 action;hook 返回纯数据时由组件映射为 JSX(见 `ComponentTree` 的 `toAntdNode`)。
 
 ## Gotchas
 

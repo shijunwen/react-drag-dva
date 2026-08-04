@@ -1,18 +1,20 @@
 import { memo, useMemo } from "react";
 import { useAtomValue } from "jotai";
-import { elementsAtom, canvasWidthAtom, canvasHeightAtom } from "@/atoms";
+import { elementsAtom, templatesAtom, DEFAULT_TEMPLATE_ID } from "@/atoms";
 import { ELEMENT_TYPES, getDef } from "./elements";
 import ElementErrorBoundary from "./ElementErrorBoundary";
 import { UNIT } from "./constants";
 import { toCss, toPercent } from "./utils";
 import styles from "./Preview.module.less";
 
+const EMPTY = [];
+
 /** 渲染元素内容(不带 dnd / moveable / 选中态):基础类型走注册表 Content,容器特判(PreviewContainer) */
-function renderContent(el) {
+function renderContent(el, templateWidth) {
   if (el.type === ELEMENT_TYPES.CONTAINER) {
     return (
       <ElementErrorBoundary resetKey={el.id}>
-        <PreviewContainer el={el} />
+        <PreviewContainer el={el} templateWidth={templateWidth} />
       </ElementErrorBoundary>
     );
   }
@@ -25,9 +27,8 @@ function renderContent(el) {
 }
 
 /** 预览态容器：渲染子元素（流式布局，无排序/拖拽） */
-function PreviewContainer({ el }) {
+function PreviewContainer({ el, templateWidth }) {
   const allElements = useAtomValue(elementsAtom);
-  const canvasWidth = useAtomValue(canvasWidthAtom);
   const children = useMemo(
     () =>
       allElements
@@ -40,10 +41,10 @@ function PreviewContainer({ el }) {
       <div className={styles.containerContent}>
         {children.map((child) => {
           const unit = child.unit || UNIT.PX;
-          const wPercent = toPercent(child.width, unit, canvasWidth);
+          const wPercent = toPercent(child.width, unit, templateWidth);
           return (
             <div key={child.id} className={styles.childWrapper} style={{ width: `${wPercent}%`, height: `${child.height}px` }}>
-              {renderContent(child)}
+              {renderContent(child, templateWidth)}
             </div>
           );
         })}
@@ -53,7 +54,7 @@ function PreviewContainer({ el }) {
 }
 
 /** 单个预览元素：x/width 统一换算为 %（px 值除以画布尺寸），y/height 用 px */
-const PreviewElement = memo(function PreviewElement({ el }) {
+const PreviewElement = memo(function PreviewElement({ el, templateWidth }) {
   const unit = el.unit || UNIT.PX;
   return (
     <div
@@ -67,38 +68,48 @@ const PreviewElement = memo(function PreviewElement({ el }) {
         transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
       }}
     >
-      {renderContent(el)}
+      {renderContent(el, templateWidth)}
     </div>
   );
 });
 
 /**
- * 预览组件：按配置态真实渲染画布内容。
- * x/width 统一按 % 渲染（px 自动换算），天然自适应容器宽度。
- * 高度固定为 canvasHeight。
+ * 预览组件：按配置态真实渲染各模板画布内容,纵向堆叠展示。
+ * 每个模板用自身 width/height;x/width 的 % 换算基于该模板 width。
  */
 function PreviewInner() {
   const elements = useAtomValue(elementsAtom);
-  const canvasWidth = useAtomValue(canvasWidthAtom);
-  const canvasHeight = useAtomValue(canvasHeightAtom);
+  const templates = useAtomValue(templatesAtom);
 
-  const topLevel = useMemo(
-    () => elements
-      .filter((el) => !el.parentId && !el.hidden)
-      .toSorted((a, b) => (a.z || 0) - (b.z || 0)),
-    [elements]
-  );
+  const byTemplate = useMemo(() => {
+    const map = new Map();
+    for (const el of elements) {
+      if (el.parentId || el.hidden) continue;
+      const tid = el.templateId ?? DEFAULT_TEMPLATE_ID;
+      const arr = map.get(tid);
+      if (arr) arr.push(el);
+      else map.set(tid, [el]);
+    }
+    for (const arr of map.values()) arr.sort((a, b) => (a.z || 0) - (b.z || 0));
+    return map;
+  }, [elements]);
 
   return (
     <div className={styles.previewWrap}>
-      <div
-        className={styles.previewBoard}
-        style={{ width: "100%", height: canvasHeight }}
-      >
-        {topLevel.map((el) => (
-          <PreviewElement key={el.id} el={el} canvasWidth={canvasWidth} />
-        ))}
-      </div>
+      {templates.map((tpl) => {
+        const els = byTemplate.get(tpl.id) ?? EMPTY;
+        return (
+          <div
+            key={tpl.id}
+            className={styles.previewBoard}
+            style={{ width: "100%", height: tpl.height }}
+          >
+            {els.map((el) => (
+              <PreviewElement key={el.id} el={el} templateWidth={tpl.width} />
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 }

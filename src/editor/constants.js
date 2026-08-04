@@ -11,7 +11,7 @@ export const UNIT = {
 
 /** 画布尺寸(逻辑像素) */
 export const CANVAS_WIDTH = 1200;
-export const CANVAS_HEIGHT = 720;
+export const CANVAS_HEIGHT = 240;
 
 /** 缩放范围 */
 export const MIN_ZOOM = 0.2;

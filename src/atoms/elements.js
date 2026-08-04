@@ -2,7 +2,12 @@ import { atom } from "jotai";
 import { elementsAtom } from "./base";
 import { selectedIdsAtom } from "./selection";
 import { beginChangeAtom, pastAtom, futureAtom } from "./history";
-import { viewportAtom } from "./viewport";
+import {
+  templatesAtom,
+  activeTemplateIdAtom,
+  getTemplateSize,
+  DEFAULT_TEMPLATE_ID,
+} from "./templates";
 import {
   createElement,
   patchElement,
@@ -19,11 +24,18 @@ import { UNIT } from "@/editor/constants";
 /* ----------------------------- 元素增删改 ----------------------------- */
 
 /** 新增元素并选中（parentId 为空=画布顶层；否则为容器内子元素） */
-export const addElementAtom = atom(null, (get, set, { type, x, y, parentId = null }) => {
+export const addElementAtom = atom(null, (get, set, { type, x, y, parentId = null, templateId } = {}) => {
   set(beginChangeAtom);
   // 容器内元素不需要 x/y，给默认值 0
   const el = createElement(type, x ?? 0, y ?? 0);
   el.parentId = parentId;
+  // templateId:容器内元素继承父容器;顶层元素用传入值或激活模板
+  if (parentId) {
+    const parent = get(elementsAtom).find((e) => e.id === parentId);
+    el.templateId = parent?.templateId ?? get(activeTemplateIdAtom) ?? DEFAULT_TEMPLATE_ID;
+  } else {
+    el.templateId = templateId ?? get(activeTemplateIdAtom) ?? DEFAULT_TEMPLATE_ID;
+  }
   const siblings = get(elementsAtom).filter((e) => (e.parentId ?? null) === parentId);
   // z 作为容器内排序索引使用
   el.z = siblings.length ? Math.max(...siblings.map((e) => e.z || 0)) + 1 : 0;
@@ -51,14 +63,15 @@ export const updateElementsAtom = atom(null, (get, set, patches) => {
 export const setElementUnitAtom = atom(null, (get, set, { id, unit }) => {
   const el = get(elementsAtom).find((e) => e.id === id);
   if (!el || el.unit === unit) return;
-  const { canvasWidth } = get(viewportAtom);
+  // 按元素所属模板的宽度换算 %（不同模板尺寸独立）
+  const { width: tplW } = getTemplateSize(get(templatesAtom), el.templateId);
   const patch = { unit };
   if (unit === UNIT.PERCENT) {
-    patch.x = canvasWidth ? +((el.x / canvasWidth) * 100).toFixed(2) : el.x;
-    patch.width = canvasWidth ? +((el.width / canvasWidth) * 100).toFixed(2) : el.width;
+    patch.x = tplW ? +((el.x / tplW) * 100).toFixed(2) : el.x;
+    patch.width = tplW ? +((el.width / tplW) * 100).toFixed(2) : el.width;
   } else {
-    patch.x = Math.round((el.x / 100) * canvasWidth);
-    patch.width = Math.round((el.width / 100) * canvasWidth);
+    patch.x = Math.round((el.x / 100) * tplW);
+    patch.width = Math.round((el.width / 100) * tplW);
   }
   set(beginChangeAtom);
   set(elementsAtom, (list) => patchElement(list, id, patch));
@@ -246,19 +259,21 @@ export const nudgeSelectedAtom = atom(null, (get, set, { dx, dy }) => {
   const ids = get(selectedIdsAtom);
   if (!ids.length) return;
   const idSet = new Set(ids);
-  const { canvasWidth, canvasHeight } = get(viewportAtom);
+  const templates = get(templatesAtom);
   set(beginChangeAtom);
   set(elementsAtom, (list) =>
     list.map((e) => {
       if (!idSet.has(e.id) || e.parentId || e.locked) return e;
+      // 按元素所属模板尺寸换算 % 与夹取范围
+      const { width: tplW, height: tplH } = getTemplateSize(templates, e.templateId);
       const isPercent = (e.unit || "px") === "%";
-      const gx = isPercent && canvasWidth ? (dx / canvasWidth) * 100 : dx;
-      const maxX = isPercent ? 100 - e.width : canvasWidth - e.width;
+      const gx = isPercent && tplW ? (dx / tplW) * 100 : dx;
+      const maxX = isPercent ? 100 - e.width : tplW - e.width;
       const x = Math.max(
         0,
         Math.min(maxX, isPercent ? +((e.x || 0) + gx).toFixed(2) : Math.round((e.x || 0) + gx)),
       );
-      const y = Math.max(0, Math.min((canvasHeight || Infinity) - e.height, Math.round((e.y || 0) + dy)));
+      const y = Math.max(0, Math.min((tplH || Infinity) - e.height, Math.round((e.y || 0) + dy)));
       return { ...e, x, y };
     }),
   );
@@ -342,18 +357,20 @@ export const moveElementToContainerAtom = atom(null, (get, set, { elementId, tar
 });
 
 /**
- * 拖拽落地:统一处理容器内重排 / 跨容器移动 / 移出为顶层。
+ * 拖拽落地:统一处理容器内重排 / 跨容器移动 / 移出为顶层 / 跨模板迁移。
  * 一次落地 = 一条撤销记录(beginChange)。
- * - targetParentId === null:移出为顶层绝对元素,赋 x/y
- * - targetParentId === 容器id:移入该容器(同或异),按 insertIndex 重排 z
+ * - targetParentId === null:移出为顶层绝对元素,赋 x/y;targetTemplateId 可实现跨模板迁移
+ * - targetParentId === 容器id:移入该容器(同或异),按 insertIndex 重排 z;元素 templateId 跟随容器
  * - insertIndex 为 null 时追加到目标容器末尾
  */
-export const dropElementAtom = atom(null, (get, set, { id, targetParentId, insertIndex = null, x, y }) => {
+export const dropElementAtom = atom(null, (get, set, { id, targetParentId, targetTemplateId, insertIndex = null, x, y }) => {
   const els = get(elementsAtom);
   const el = els.find((e) => e.id === id);
   if (!el) return;
   const currentParent = el.parentId ?? null;
-  if (targetParentId === currentParent && insertIndex === null) return;
+  const currentTemplateId = el.templateId ?? DEFAULT_TEMPLATE_ID;
+  const newTemplateId = targetTemplateId ?? currentTemplateId;
+  if (targetParentId === currentParent && insertIndex === null && newTemplateId === currentTemplateId) return;
 
   // 防环:不能移入自身或其后代容器
   if (targetParentId !== null && wouldCreateCycle(els, id, targetParentId)) return;
@@ -361,16 +378,20 @@ export const dropElementAtom = atom(null, (get, set, { id, targetParentId, inser
   set(beginChangeAtom);
 
   if (targetParentId === null) {
-    // 移出为顶层:放到顶层末尾,赋绝对坐标
-    const topSiblings = els.filter((e) => !e.parentId && e.id !== id);
+    // 移出为顶层:放到目标模板顶层末尾,赋绝对坐标
+    const topSiblings = els.filter(
+      (e) => !e.parentId && e.id !== id && (e.templateId ?? DEFAULT_TEMPLATE_ID) === newTemplateId
+    );
     const newZ = topSiblings.length ? Math.max(...topSiblings.map((e) => e.z || 0)) + 1 : 0;
     set(elementsAtom, (list) =>
-      list.map((e) => (e.id === id ? { ...e, parentId: null, z: newZ, x: x ?? 0, y: y ?? 0 } : e))
+      list.map((e) => (e.id === id ? { ...e, parentId: null, templateId: newTemplateId, z: newZ, x: x ?? 0, y: y ?? 0 } : e))
     );
     return;
   }
 
-  // 移入容器(同容器重排 / 跨容器迁移):按 insertIndex 重排目标容器兄弟 z
+  // 移入容器(同容器重排 / 跨容器迁移):元素 templateId 跟随容器,按 insertIndex 重排目标容器兄弟 z
+  const container = els.find((e) => e.id === targetParentId);
+  const containerTemplateId = container?.templateId ?? DEFAULT_TEMPLATE_ID;
   set(elementsAtom, (list) => {
     const siblingIds = list
       .filter((e) => (e.parentId ?? null) === targetParentId && e.id !== id)
@@ -381,7 +402,7 @@ export const dropElementAtom = atom(null, (get, set, { id, targetParentId, inser
     siblingIds.splice(idx, 0, id);
     const zMap = new Map(siblingIds.map((eid, i) => [eid, i]));
     return list.map((e) => {
-      if (e.id === id) return { ...e, parentId: targetParentId, z: zMap.get(e.id) ?? 0, x: 0, y: 0 };
+      if (e.id === id) return { ...e, parentId: targetParentId, templateId: containerTemplateId, z: zMap.get(e.id) ?? 0, x: 0, y: 0 };
       const z = zMap.get(e.id);
       return z !== undefined ? { ...e, z } : e;
     });

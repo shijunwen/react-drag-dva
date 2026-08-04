@@ -2,6 +2,7 @@ import { useAtomValue } from "jotai";
 import { useMemo } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { elementsAtom, selectedIdsAtom, dragOverContainerIdAtom } from "@/atoms";
+import { buildGroupedIds } from "../utils";
 import CanvasElement from "./CanvasElement";
 import styles from "./ContainerBox.module.less";
 
@@ -28,21 +29,10 @@ export default function ContainerBox({ el, elementRefs, registerRef }) {
   }, [allElements, el.id]);
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-  const groupedIds = useMemo(() => {
-    const groupIds = new Set();
-    const selectedGroupIds = new Set();
-    allElements.forEach((e) => {
-      if (e.groupId && selectedSet.has(e.id)) {
-        selectedGroupIds.add(e.groupId);
-      }
-    });
-    allElements.forEach((e) => {
-      if (e.groupId && selectedGroupIds.has(e.groupId)) {
-        groupIds.add(e.id);
-      }
-    });
-    return groupIds;
-  }, [allElements, selectedSet]);
+  const groupedIds = useMemo(
+    () => buildGroupedIds(allElements, selectedIds),
+    [allElements, selectedIds],
+  );
 
   return (
     <div

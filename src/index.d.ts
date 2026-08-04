@@ -45,19 +45,31 @@ export interface EditorElement {
   groupId: string | null;
   /** null=画布顶层; containerId=容器内子元素 */
   parentId: string | null;
+  /** 所属模板 id(null 兜底为默认模板) */
+  templateId: string | null;
   /** 同级层叠顺序 */
   z: number;
+  /** 锁定:不可移动/缩放(仍可选中以解锁) */
+  locked?: boolean;
+  /** 隐藏:不渲染(保留数据) */
+  hidden?: boolean;
   /** 类型专属属性(text/fill/src/label 等) */
   props: Record<string, unknown>;
 }
 
-/** 视口状态:缩放 + 平移 + 画布尺寸 */
+/** 模板:一页独立画布(各自尺寸与元素集合) */
+export interface EditorTemplate {
+  id: string;
+  name: string;
+  width: number;
+  height: number;
+}
+
+/** 视口状态:缩放 + 平移(画布尺寸已迁移到 templatesAtom) */
 export interface Viewport {
   zoom: number;
   scrollLeft: number;
   scrollTop: number;
-  canvasWidth: number;
-  canvasHeight: number;
 }
 
 /** 包围盒 */
@@ -118,6 +130,10 @@ export interface EditorProps {
   onChange?: (elements: EditorElement[]) => void;
   /** 非受控模式的挂载种子(仅一次,受控模式下忽略) */
   initialElements?: EditorElement[];
+  /** 模板列表挂载种子(可选,仅一次) */
+  initialTemplates?: EditorTemplate[];
+  /** 模板列表变化回调(可选,观察模板增删改) */
+  onTemplatesChange?: (templates: EditorTemplate[]) => void;
   /** 顶部自定义 chrome(如工具栏),在 Editor 的 Jotai store 内渲染,可用 useEditor()/atoms 与本实例联动 */
   children?: ReactNode;
 }
@@ -135,6 +151,7 @@ export interface AddElementArgs {
   x?: number;
   y?: number;
   parentId?: string | null;
+  templateId?: string;
 }
 
 export interface useEditorReturn {
@@ -143,6 +160,9 @@ export interface useEditorReturn {
   selectedElements: EditorElement[];
   canUndo: boolean;
   canRedo: boolean;
+  templates: EditorTemplate[];
+  activeTemplateId: string;
+  templateColumns: number;
   addElement: (args: AddElementArgs) => void;
   updateElement: (args: { id: string; patch: Partial<EditorElement> }) => void;
   updateElements: (patches: Array<{ id: string } & Partial<EditorElement>>) => void;
@@ -159,6 +179,13 @@ export interface useEditorReturn {
   redo: () => void;
   clearCanvas: () => void;
   reorderZ: (args: { id: string; to: ZDir }) => void;
+  addTemplate: (opts?: { basedOnId?: string }) => string;
+  duplicateTemplate: (id: string) => void;
+  deleteTemplate: (id: string) => void;
+  renameTemplate: (args: { id: string; name: string }) => void;
+  setTemplateSize: (args: { id: string; width?: number; height?: number }) => void;
+  setActiveTemplate: (id: string) => void;
+  setTemplateColumns: (n: number) => void;
 }
 
 export function useEditor(): useEditorReturn;
@@ -173,6 +200,10 @@ export const zoomAtom: Atom<number>;
 export const canvasWidthAtom: Atom<number>;
 export const canvasHeightAtom: Atom<number>;
 export const previewModeAtom: PrimitiveAtom<boolean>;
+export const templatesAtom: PrimitiveAtom<EditorTemplate[]>;
+export const activeTemplateIdAtom: PrimitiveAtom<string>;
+export const templateColumnsAtom: PrimitiveAtom<number>;
+export const DEFAULT_TEMPLATE_ID: string;
 
 export const setElementsAtom: WritableAtom<null, [EditorElement[]]>;
 export const addElementAtom: WritableAtom<null, [AddElementArgs]>;
@@ -204,8 +235,14 @@ export const toggleSelectAtom: WritableAtom<null, [string]>;
 export const clearSelectionAtom: WritableAtom<null, []>;
 export const setViewportAtom: WritableAtom<null, [Partial<Viewport>]>;
 export const setZoomAtom: WritableAtom<null, [number]>;
-export const setCanvasSizeAtom: WritableAtom<null, [{ width: number; height: number }]>;
 export const setPreviewModeAtom: WritableAtom<null, [boolean]>;
+export const addTemplateAtom: WritableAtom<null, [{ basedOnId?: string }?]>;
+export const duplicateTemplateAtom: WritableAtom<null, [string]>;
+export const deleteTemplateAtom: WritableAtom<null, [string]>;
+export const renameTemplateAtom: WritableAtom<null, [{ id: string; name: string }]>;
+export const setTemplateSizeAtom: WritableAtom<null, [{ id: string; width?: number; height?: number }]>;
+export const setActiveTemplateAtom: WritableAtom<null, [string]>;
+export const setTemplateColumnsAtom: WritableAtom<null, [number]>;
 
 /* ============================ 工具函数 ============================ */
 

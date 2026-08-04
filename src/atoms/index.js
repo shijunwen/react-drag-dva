@@ -1,6 +1,24 @@
 export { elementsAtom } from "./base";
 
-export { viewportAtom, setViewportAtom, setZoomAtom, setCanvasSizeAtom, zoomAtom, canvasWidthAtom, canvasHeightAtom } from "./viewport";
+export { viewportAtom, setViewportAtom, setZoomAtom, zoomAtom } from "./viewport";
+
+export {
+  templatesAtom,
+  activeTemplateIdAtom,
+  activeTemplateAtom,
+  templateColumnsAtom,
+  canvasWidthAtom,
+  canvasHeightAtom,
+  DEFAULT_TEMPLATE_ID,
+  getTemplateSize,
+  addTemplateAtom,
+  duplicateTemplateAtom,
+  deleteTemplateAtom,
+  renameTemplateAtom,
+  setTemplateSizeAtom,
+  setActiveTemplateAtom,
+  setTemplateColumnsAtom,
+} from "./templates";
 
 export { previewModeAtom, setPreviewModeAtom } from "./preview";
 

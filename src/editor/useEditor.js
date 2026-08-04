@@ -25,6 +25,16 @@ import {
   clearCanvasAtom,
   beginChangeAtom,
   reorderZAtom,
+  templatesAtom,
+  activeTemplateIdAtom,
+  templateColumnsAtom,
+  addTemplateAtom,
+  duplicateTemplateAtom,
+  deleteTemplateAtom,
+  renameTemplateAtom,
+  setTemplateSizeAtom,
+  setActiveTemplateAtom,
+  setTemplateColumnsAtom,
 } from "@/atoms";
 
 // 派生为布尔值:撤销栈变化但布尔值未翻转时,jotai 不通知订阅者,
@@ -42,6 +52,9 @@ export function useEditor() {
   const selectedElements = useAtomValue(selectedElementsAtom);
   const canUndo = useAtomValue(canUndoAtom);
   const canRedo = useAtomValue(canRedoAtom);
+  const templates = useAtomValue(templatesAtom);
+  const activeTemplateId = useAtomValue(activeTemplateIdAtom);
+  const templateColumns = useAtomValue(templateColumnsAtom);
 
   return {
     elements,
@@ -49,6 +62,9 @@ export function useEditor() {
     selectedElements,
     canUndo,
     canRedo,
+    templates,
+    activeTemplateId,
+    templateColumns,
     addElement: useSetAtom(addElementAtom),
     updateElement: useSetAtom(updateElementAtom),
     updateElements: useSetAtom(updateElementsAtom),
@@ -69,5 +85,12 @@ export function useEditor() {
     redo: useSetAtom(redoAtom),
     clearCanvas: useSetAtom(clearCanvasAtom),
     reorderZ: useSetAtom(reorderZAtom),
+    addTemplate: useSetAtom(addTemplateAtom),
+    duplicateTemplate: useSetAtom(duplicateTemplateAtom),
+    deleteTemplate: useSetAtom(deleteTemplateAtom),
+    renameTemplate: useSetAtom(renameTemplateAtom),
+    setTemplateSize: useSetAtom(setTemplateSizeAtom),
+    setActiveTemplate: useSetAtom(setActiveTemplateAtom),
+    setTemplateColumns: useSetAtom(setTemplateColumnsAtom),
   };
 }

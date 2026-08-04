@@ -1,5 +1,6 @@
-import { memo, useMemo } from "react";
-import { InputNumber, Typography, Empty, Segmented, Switch } from "antd";
+import { memo, useMemo, useState, useEffect } from "react";
+import { InputNumber, Typography, Segmented, Switch, Select, Input } from "antd";
+import { PlusOutlined, CopyOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useEditor } from "../useEditor";
 import { getDef } from "../elements";
 import SchemaProps from "../SchemaProps";
@@ -14,6 +15,12 @@ const NUMBER_STYLE = { fontFamily: "var(--font-mono)", fontVariantNumeric: "tabu
 const UNIT_OPTIONS = [
   { label: "px", value: "px" },
   { label: "%", value: "%" },
+];
+const COLUMNS_OPTIONS = [
+  { label: "1", value: 1 },
+  { label: "2", value: 2 },
+  { label: "3", value: 3 },
+  { label: "4", value: 4 },
 ];
 
 /** 数值字段：聚焦时开启一条历史记录，编辑过程实时更新 */
@@ -39,6 +46,113 @@ const Z_ACTIONS = [
   { to: "forward", label: "上移" },
   { to: "front", label: "置顶" },
 ];
+
+/** 模板重命名输入:本地草稿,Enter/blur 提交,外部 name 变化时同步 */
+function TemplateNameField({ name, onCommit }) {
+  const [draft, setDraft] = useState(name);
+  useEffect(() => {
+    setDraft(name);
+  }, [name]);
+  const commit = () => {
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== name) onCommit(trimmed);
+    else setDraft(name);
+  };
+  return (
+    <Input
+      size="small"
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onPressEnter={commit}
+      onBlur={commit}
+    />
+  );
+}
+
+/** 画布与模板配置(无选中时显示在属性面板) */
+const CanvasConfig = memo(function CanvasConfig() {
+  const {
+    templates,
+    activeTemplateId,
+    templateColumns,
+    addTemplate,
+    duplicateTemplate,
+    deleteTemplate,
+    renameTemplate,
+    setTemplateSize,
+    setActiveTemplate,
+    setTemplateColumns,
+  } = useEditor();
+  const active = templates.find((t) => t.id === activeTemplateId) ?? templates[0];
+  if (!active) return null;
+
+  return (
+    <section className={styles.section}>
+      <Text type="secondary" className={styles.sectionTitle}>
+        画布与模板
+      </Text>
+      <div className={styles.tplRow}>
+        <Select
+          size="small"
+          value={activeTemplateId}
+          onChange={setActiveTemplate}
+          options={templates.map((t) => ({ value: t.id, label: t.name }))}
+          className={styles.tplSelect}
+        />
+        <button type="button" className={styles.tplIconBtn} onClick={() => addTemplate()} title="新增模板">
+          <PlusOutlined />
+        </button>
+        <button
+          type="button"
+          className={styles.tplIconBtn}
+          onClick={() => duplicateTemplate(activeTemplateId)}
+          title="复制模板"
+        >
+          <CopyOutlined />
+        </button>
+        <button
+          type="button"
+          className={styles.tplIconBtn}
+          onClick={() => deleteTemplate(activeTemplateId)}
+          title="删除模板"
+          disabled={templates.length <= 1}
+        >
+          <DeleteOutlined />
+        </button>
+      </div>
+      <div className={styles.field}>
+        <span className={styles.label}>名称</span>
+        <TemplateNameField
+          name={active.name}
+          onCommit={(name) => renameTemplate({ id: active.id, name })}
+        />
+      </div>
+      <div className={styles.grid}>
+        <NumberField
+          label="宽"
+          value={active.width}
+          onChange={(v) => setTemplateSize({ id: active.id, width: v, height: active.height })}
+          onBegin={() => {}}
+        />
+        <NumberField
+          label="高"
+          value={active.height}
+          onChange={(v) => setTemplateSize({ id: active.id, width: active.width, height: v })}
+          onBegin={() => {}}
+        />
+      </div>
+      <div className={styles.field}>
+        <span className={styles.label}>列数</span>
+        <Segmented
+          size="small"
+          options={COLUMNS_OPTIONS}
+          value={templateColumns}
+          onChange={(v) => setTemplateColumns(v)}
+        />
+      </div>
+    </section>
+  );
+});
 
 // 无 props，memo 阻断父级 Editor 的 zoom 等无关重渲染波及至此；
 // 自身仍随 selectedElements（useEditor）变化重渲染。
@@ -68,7 +182,7 @@ const PropertiesPanel = memo(function PropertiesPanel() {
   return (
     <div className={styles.panel}>
       {!selectedElements.length ? (
-        <Empty description="未选中组件" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        <CanvasConfig />
       ) : single ? (
         <>
           <section className={styles.section}>
