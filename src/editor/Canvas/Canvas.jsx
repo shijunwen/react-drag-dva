@@ -202,7 +202,7 @@ export default function Canvas({ dndActive }) {
         </div>
       </div>
 
-      {/* 底部居中控制条:光标坐标 + 缩放 + 网格吸附 + 画布拖拽 */}
+      {/* 底部居中控制条:光标坐标 + 缩放 + 网格吸附 + 画布拖拽 + 选中元素尺寸 */}
       <ZoomBar
         canvasWrapRef={canvasWrapRef}
         zoom={zoom}
@@ -216,6 +216,8 @@ export default function Canvas({ dndActive }) {
         setGridSnapSize={setGridSnapSize}
         panEnabled={panEnabled}
         togglePan={togglePan}
+        selectedIds={selectedIds}
+        elements={elements}
       />
     </div>
   );

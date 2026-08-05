@@ -1,0 +1,70 @@
+/**
+ * react-moveable 控制柄美化
+ *
+ * react-moveable 将控制层(.moveable-control-box)以全局 DOM 注入,故样式须置于
+ * 全局表(非 CSS Module)。配色对齐「精密制图工坊」:唯一信号色 teal,控制点
+ * 采用白色纸张感底 + 主色描边,hover 反相并叠加主色辉光。
+ *
+ * 关键约束:
+ * 1. 手柄与连线由 moveable 以 inline transform 定位/缩放,不可用 transform
+ *    做 hover 效果(会覆盖定位变换),故改用 background / box-shadow 实现反馈。
+ * 2. 手柄尺寸变更须同步负 margin(居中校正),否则与选中框错位。
+ * 3. moveable 运行时注入 CSS,必须使用 !important 才能可靠覆盖默认样式。
+ */
+
+/* 主色变量下沉:使连线 / 吸附线 / 原点统一取主色,替换默认 #4af */
+.moveable-control-box {
+  --moveable-color: var(--color-primary) !important;
+}
+
+/* 选中框连线:半透明主色发丝线 */
+.moveable-line {
+  background: rgba(var(--color-primary-rgb), 0.65) !important;
+}
+
+/* 旋转连接线:弱化主色,与选中框区分 */
+.moveable-line.moveable-rotation-line {
+  background: rgba(var(--color-primary-rgb), 0.4) !important;
+}
+
+/* 吸附参考线(dashed):统一主色,替换默认 #4af */
+.moveable-line.moveable-dashed {
+  border-color: rgba(var(--color-primary-rgb), 0.5) !important;
+}
+
+/* 缩放手柄:白底主色描边的精密圆点(10px,负 margin -5px 校正居中) */
+.moveable-control {
+  width: 10px !important;
+  height: 10px !important;
+  margin-top: -5px !important;
+  margin-left: -5px !important;
+  border: 2px solid var(--color-primary) !important;
+  border-radius: 50% !important;
+  background: var(--color-bg-elevated) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18) !important;
+  transition: background var(--transition-fast), border-color var(--transition-fast),
+    box-shadow var(--transition-fast) !important;
+
+  &:hover {
+    /* 反相:主色填充 + 白边,叠加主色辉光环 */
+    background: var(--color-primary) !important;
+    border-color: var(--color-bg-elevated) !important;
+    box-shadow: 0 0 0 3px var(--color-primary-glow), 0 2px 6px rgba(15, 23, 42, 0.22) !important;
+  }
+}
+
+/* 旋转手柄:实心主色圆点,略大于缩放手柄以示区分(12px,负 margin -6px) */
+.moveable-control.moveable-rotation-control {
+  width: 12px !important;
+  height: 12px !important;
+  margin-top: -6px !important;
+  margin-left: -6px !important;
+  border: 2px solid var(--color-bg-elevated) !important;
+  background: var(--color-primary) !important;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.25) !important;
+
+  &:hover {
+    box-shadow: 0 0 0 3px var(--color-primary-glow), 0 2px 8px rgba(15, 23, 42, 0.3) !important;
+  }
+}
+

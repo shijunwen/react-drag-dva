@@ -9,6 +9,7 @@ import {
   updateElementsAtom,
   beginChangeAtom,
   zoomAtom,
+  viewportAtom,
   templatesAtom,
   dropElementAtom,
   dragOverContainerIdAtom,
@@ -72,13 +73,7 @@ export function useMoveableGestures({ elementRefs, moveableRef, viewerRef, gridS
     [templateSizeMap],
   );
 
-  // 缩放变化 或 元素状态变化（undo/redo）后，让 moveable 重新计算控制框位置
-  useEffect(() => {
-    if (moveableRef.current) {
-      requestAnimationFrame(() => moveableRef.current.updateRect());
-    }
-  }, [zoom, elements, moveableRef]);
-
+  // 所有 ref 声明放在前面
   const dirtyRef = useRef(false); // 本次手势是否产生过位移（用于延迟记历史）
   const pendingRef = useRef([]); // 待提交的 patches
   const dragCtxRef = useRef(null); // 拖拽上下文：{ mode: "top"|"container", id, parentId? }
@@ -111,6 +106,17 @@ export function useMoveableGestures({ elementRefs, moveableRef, viewerRef, gridS
     scrollListenerRef.current = null;
     scrollPinnedRef.current = false;
   }, [viewerRef]);
+
+  // 订阅 viewport 滚动变化(非 zoom)来更新控制框位置
+  const { scrollLeft, scrollTop } = useAtomValue(viewportAtom);
+
+  // 缩放 / 元素变化 / 滚动位置变化后重算控制框位置
+  useEffect(() => {
+    // 仅在非手势期间更新(手势期间 scroll 被锁定,不需要更新)
+    if (!scrollPinnedRef.current && moveableRef.current) {
+      requestAnimationFrame(() => moveableRef.current.updateRect());
+    }
+  }, [zoom, elements, moveableRef, scrollLeft, scrollTop]);
 
   // 选中元素引用
   const targets = selectedIds
@@ -223,6 +229,10 @@ export function useMoveableGestures({ elementRefs, moveableRef, viewerRef, gridS
     snapDigit: 0,
     snapDistFormat: SNAP_DIST_FORMAT,
     zoom,
+    // 只显示四个角的手柄，更清爽美观
+    renderDirections: ['nw', 'ne', 'sw', 'se'],
+    // 不显示中心点
+    origin: false,
     // 多板下 scrollContainer 用网格容器(Scrollable 已被 getScrollPosition 禁用滚动)
     scrollContainer: "[data-boards-grid]",
     getScrollPosition: GET_SCROLL_POSITION,
@@ -350,24 +360,112 @@ export function useMoveableGestures({ elementRefs, moveableRef, viewerRef, gridS
       const sz = sizeFor(el);
       const unit = el.unit || "px";
       const isPercent = unit === "%";
-      const width = isPercent ? round(pxToUnit(e.width, unit, sz.width), 2) : round(e.width);
+
+      const containerWidth = isPercent ? 100 : sz.width;
+      const containerHeight = sz.height;
+
+      // 获取原始值
+      let width = isPercent ? round(pxToUnit(e.width, unit, sz.width), 2) : round(e.width);
+      let height = round(e.height);
+      let x = isPercent ? round(pxToUnit(e.drag.left, unit, sz.width), isPercent ? 2 : 0) : round(e.drag.left);
+      let y = round(e.drag.top);
+
+      if (!isInContainer) {
+        const dir = e.direction || [];
+        const isLeft = dir.includes("w");
+        const isRight = dir.includes("e");
+        const isTop = dir.includes("n");
+        const isBottom = dir.includes("s");
+
+        // 最小尺寸
+        width = Math.max(20, width);
+        height = Math.max(20, height);
+
+        let right = x + width;
+        let bottom = y + height;
+
+        // 根据拖拽方向处理边界
+        if (isLeft) {
+          if (x < 0) {
+            const overflow = 0 - x;
+            width = width + overflow;
+            x = 0;
+          }
+          if (x + width > containerWidth) {
+            width = containerWidth - x;
+          }
+        } else if (isRight) {
+          if (right > containerWidth) {
+            right = containerWidth;
+            width = right - x;
+          }
+          if (x < 0) x = 0;
+        }
+
+        if (isTop) {
+          if (y < 0) {
+            const overflow = 0 - y;
+            height = height + overflow;
+            y = 0;
+          }
+          if (y + height > containerHeight) {
+            height = containerHeight - y;
+          }
+        } else if (isBottom) {
+          if (bottom > containerHeight) {
+            bottom = containerHeight;
+            height = bottom - y;
+          }
+          if (y < 0) y = 0;
+        }
+
+        // 同时处理四个角的情况
+        if (isLeft && isTop) {
+          if (x < 0) { const overflow = 0 - x; width = width + overflow; x = 0; }
+          if (y < 0) { const overflow = 0 - y; height = height + overflow; y = 0; }
+          if (x + width > containerWidth) width = containerWidth - x;
+          if (y + height > containerHeight) height = containerHeight - y;
+        }
+        if (isLeft && isBottom) {
+          if (x < 0) { const overflow = 0 - x; width = width + overflow; x = 0; }
+          if (y + height > containerHeight) height = containerHeight - y;
+          if (x + width > containerWidth) width = containerWidth - x;
+          if (y < 0) y = 0;
+        }
+        if (isRight && isTop) {
+          if (x + width > containerWidth) width = containerWidth - x;
+          if (y < 0) { const overflow = 0 - y; height = height + overflow; y = 0; }
+          if (x < 0) x = 0;
+          if (y + height > containerHeight) height = containerHeight - y;
+        }
+        if (isRight && isBottom) {
+          if (x + width > containerWidth) width = containerWidth - x;
+          if (y + height > containerHeight) height = containerHeight - y;
+          if (x < 0) x = 0;
+          if (y < 0) y = 0;
+        }
+
+        // 最终安全检查
+        width = Math.max(20, Math.min(width, containerWidth));
+        height = Math.max(20, Math.min(height, containerHeight));
+        x = clamp(x, 0, containerWidth - width);
+        y = clamp(y, 0, containerHeight - height);
+      }
+
       const patch = {
         width,
-        height: round(e.height),
+        height,
       };
+
       if (!isInContainer) {
-        const maxX = isPercent ? 100 - width : sz.width - width;
-        patch.x = clamp(
-          round(pxToUnit(e.drag.left, unit, sz.width), isPercent ? 2 : 0),
-          0,
-          maxX,
-        );
-        patch.y = clamp(round(e.drag.top), 0, sz.height - patch.height);
+        patch.x = x;
+        patch.y = y;
       }
+
       applyToDom(e.target, patch, unit);
       if (isInContainer) {
         e.target.style.transform = buildRotationTransform(
-          `translate(${round(e.drag.left)}px, ${round(e.drag.top)}px)`,
+          `translate(${x}px, ${y}px)`,
           el.rotation,
         );
       }
@@ -419,26 +517,102 @@ export function useMoveableGestures({ elementRefs, moveableRef, viewerRef, gridS
         const sz = sizeFor(el);
         const unit = el.unit || "px";
         const isPercent = unit === "%";
-        const width = isPercent ? round(pxToUnit(ev.width, unit, sz.width), 2) : round(ev.width);
-        const patch = {
-          width,
-          height: round(ev.height),
-        };
+
+        const containerWidth = isPercent ? 100 : sz.width;
+        const containerHeight = sz.height;
+
+        let width = isPercent ? round(pxToUnit(ev.width, unit, sz.width), 2) : round(ev.width);
+        let height = round(ev.height);
+        let x = isPercent ? round(pxToUnit(ev.drag.left, unit, sz.width), isPercent ? 2 : 0) : round(ev.drag.left);
+        let y = round(ev.drag.top);
+
         if (!isInContainer) {
-          const maxX = isPercent ? 100 - width : sz.width - width;
-          patch.x = clamp(
-            round(pxToUnit(ev.drag.left, unit, sz.width), isPercent ? 2 : 0),
-            0,
-            maxX,
-          );
-          patch.y = clamp(round(ev.drag.top), 0, sz.height - patch.height);
+          const dir = ev.direction || [];
+          const isLeft = dir.includes("w");
+          const isRight = dir.includes("e");
+          const isTop = dir.includes("n");
+          const isBottom = dir.includes("s");
+
+          // 最小尺寸
+          width = Math.max(20, width);
+          height = Math.max(20, height);
+
+          let right = x + width;
+          let bottom = y + height;
+
+          // 根据拖拽方向处理边界
+          if (isLeft) {
+            if (x < 0) {
+              const overflow = 0 - x;
+              width = width + overflow;
+              x = 0;
+            }
+            if (x + width > containerWidth) {
+              width = containerWidth - x;
+            }
+          } else if (isRight) {
+            if (right > containerWidth) {
+              right = containerWidth;
+              width = right - x;
+            }
+            if (x < 0) x = 0;
+          }
+
+          if (isTop) {
+            if (y < 0) {
+              const overflow = 0 - y;
+              height = height + overflow;
+              y = 0;
+            }
+            if (y + height > containerHeight) {
+              height = containerHeight - y;
+            }
+          } else if (isBottom) {
+            if (bottom > containerHeight) {
+              bottom = containerHeight;
+              height = bottom - y;
+            }
+            if (y < 0) y = 0;
+          }
+
+          // 同时处理四个角的情况
+          if (isLeft && isTop) {
+            if (x < 0) { const overflow = 0 - x; width = width + overflow; x = 0; }
+            if (y < 0) { const overflow = 0 - y; height = height + overflow; y = 0; }
+            if (x + width > containerWidth) width = containerWidth - x;
+            if (y + height > containerHeight) height = containerHeight - y;
+          }
+          if (isLeft && isBottom) {
+            if (x < 0) { const overflow = 0 - x; width = width + overflow; x = 0; }
+            if (y + height > containerHeight) height = containerHeight - y;
+            if (x + width > containerWidth) width = containerWidth - x;
+            if (y < 0) y = 0;
+          }
+          if (isRight && isTop) {
+            if (x + width > containerWidth) width = containerWidth - x;
+            if (y < 0) { const overflow = 0 - y; height = height + overflow; y = 0; }
+            if (x < 0) x = 0;
+            if (y + height > containerHeight) height = containerHeight - y;
+          }
+          if (isRight && isBottom) {
+            if (x + width > containerWidth) width = containerWidth - x;
+            if (y + height > containerHeight) height = containerHeight - y;
+            if (x < 0) x = 0;
+            if (y < 0) y = 0;
+          }
+
+          // 最终安全检查
+          width = Math.max(20, Math.min(width, containerWidth));
+          height = Math.max(20, Math.min(height, containerHeight));
+          x = clamp(x, 0, containerWidth - width);
+          y = clamp(y, 0, containerHeight - height);
         }
+
+        const patch = { width, height };
+        if (!isInContainer) { patch.x = x; patch.y = y; }
         applyToDom(ev.target, patch, unit);
         if (isInContainer) {
-          ev.target.style.transform = buildRotationTransform(
-            `translate(${round(ev.drag.left)}px, ${round(ev.drag.top)}px)`,
-            el.rotation,
-          );
+          ev.target.style.transform = buildRotationTransform(`translate(${x}px, ${y}px)`, el.rotation);
         }
         return { id, patch };
       });

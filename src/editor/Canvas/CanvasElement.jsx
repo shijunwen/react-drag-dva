@@ -2,6 +2,7 @@ import { memo, useCallback } from "react";
 import { ELEMENT_TYPES, getDef } from "../elements";
 import ContainerBox from "./ContainerBox";
 import ElementErrorBoundary from "../ElementErrorBoundary";
+import SizeLabel from "./components/SizeLabel";
 import styles from "./Canvas.module.less";
 
 /** 渲染元素内部内容:基础类型走注册表 Content,容器特判(ContainerBox) */
@@ -75,6 +76,10 @@ const CanvasElement = memo(function CanvasElement({
       style={absoluteStyle}
     >
       {renderContent(el, elementRefs, registerRef)}
+      {/* 统一管理的尺寸标签 */}
+      {selected && (
+        <SizeLabel width={el.width} height={el.height} unit={el.unit} />
+      )}
     </div>
   );
 });
