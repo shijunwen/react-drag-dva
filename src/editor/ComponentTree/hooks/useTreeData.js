@@ -16,7 +16,7 @@ const getElementLabel = (element) => {
  *
  * 节点形状:
  * - 模板节点: { key, templateId, name, count, children }
- * - 元素节点: { key, label, iconType, isContainer, locked, hidden, children }
+ * - 元素节点: { key, label, typeLabel, iconType, isContainer, locked, hidden, children }
  */
 export function useTreeData(elements, templates) {
   const { treeNodes, defaultExpandedKeys } = useMemo(() => {
@@ -35,9 +35,12 @@ export function useTreeData(elements, templates) {
 
     const buildNode = (el) => {
       if (el.type === ELEMENT_TYPES.CONTAINER) allContainerIds.push(el.id);
+      const typeLabel = getElementLabel(el);
       return {
         key: el.id,
-        label: getElementLabel(el),
+        // 实例名优先,缺省回退类型 label;typeLabel 同时用作重命名 placeholder
+        label: el.name || typeLabel,
+        typeLabel,
         iconType: el.type,
         isContainer: el.type === ELEMENT_TYPES.CONTAINER,
         locked: !!el.locked,

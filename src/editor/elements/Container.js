@@ -11,7 +11,7 @@ export default {
   type: ELEMENT_TYPES.CONTAINER,
   label: "容器",
   icon: BlockOutlined,
-  defaults: { width: 320, height: 260, props: {} },
+  defaults: { width: 200, height: 200, props: {} },
   Content: null,
   Props: null,
 };

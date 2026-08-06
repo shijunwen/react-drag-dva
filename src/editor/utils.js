@@ -82,6 +82,7 @@ export function createElement(type, x, y) {
     z: 0, // 同级层叠顺序
     locked: false, // 锁定:不可移动/缩放(仍可选中以解锁)
     hidden: false, // 隐藏:不渲染(保留数据,可通过组件树选中后取消隐藏)
+    name: null, // 实例名称(null 时回退为类型 label;组件树/属性面板可改)
     props: cloneProps(def.defaults.props),
   };
 }

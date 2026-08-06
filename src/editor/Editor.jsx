@@ -1,3 +1,4 @@
+import { forwardRef, useImperativeHandle } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -6,7 +7,7 @@ import {
   useSensors,
   MeasuringStrategy,
 } from "@dnd-kit/core";
-import { useAtomValue, Provider } from "jotai";
+import { useAtomValue, useStore, Provider } from "jotai";
 import Palette from "./Palette/Palette";
 import Canvas from "./Canvas/Canvas";
 import PropertiesPanel from "./PropertiesPanel/PropertiesPanel";
@@ -18,7 +19,7 @@ import { useEditorShortcuts } from "./useEditorShortcuts";
 import { usePaletteDnd } from "./usePaletteDnd";
 import { PALETTE_ITEM_MAP } from "./elements";
 import { EditorPresenceContext } from "./editorPresence";
-import { zoomAtom, selectedIdsAtom, previewModeAtom } from "@/atoms";
+import { zoomAtom, selectedIdsAtom, previewModeAtom, elementsAtom, templatesAtom } from "@/atoms";
 import styles from "./Editor.module.less";
 
 /**
@@ -40,7 +41,25 @@ const pickInnermostDroppable = ({ pointerCoordinates, droppableContainers, dropp
   return best ? [{ id: best.id }] : [];
 };
 
-export default function Editor({ value, initialElements, onChange, initialTemplates, onTemplatesChange, children }) {
+/**
+ * 编辑器命令式句柄(类型仅用于 TS,运行时无此导出)。
+ * 通过 <Editor ref={ref} /> 取得 ref.current.getData() -> { templates, elements }。
+ */
+const Editor = forwardRef(function Editor(
+  {
+    value,
+    initialElements,
+    onChange,
+    initialTemplates,
+    onTemplatesChange,
+    leftPanel,
+    leftPanelTitle,
+    rightPanel,
+    rightPanelTitle,
+    children,
+  },
+  ref,
+) {
   // 每个实例独立 Jotai store:避免多个 <Editor/> 共享全局默认 store 而互相串扰。
   // children(如自定义工具栏)在 Provider 内渲染,可用 useEditor()/atoms 与本实例联动。
   // EditorPresenceContext 标记"已在 <Editor> 内",供 <DraggableElement> 等扩展组件自检。
@@ -48,23 +67,56 @@ export default function Editor({ value, initialElements, onChange, initialTempla
     <Provider>
       <EditorPresenceContext.Provider value={true}>
         <EditorInner
+          ref={ref}
           value={value}
           initialElements={initialElements}
           onChange={onChange}
           initialTemplates={initialTemplates}
           onTemplatesChange={onTemplatesChange}
+          leftPanel={leftPanel}
+          leftPanelTitle={leftPanelTitle}
+          rightPanel={rightPanel}
+          rightPanelTitle={rightPanelTitle}
         >
           {children}
         </EditorInner>
       </EditorPresenceContext.Provider>
     </Provider>
   );
-}
+});
 
-function EditorInner({ value, initialElements, onChange, initialTemplates, onTemplatesChange, children }) {
+export default Editor;
+
+const EditorInner = forwardRef(function EditorInner(
+  {
+    value,
+    initialElements,
+    onChange,
+    initialTemplates,
+    onTemplatesChange,
+    leftPanel,
+    leftPanelTitle,
+    rightPanel,
+    rightPanelTitle,
+    children,
+  },
+  ref,
+) {
   const { addElement, deleteSelected, undo, redo, copySelected, paste, duplicateSelected, nudgeSelected } = useEditor();
   // 受控/非受控同步:外部 value <-> 内部 elementsAtom
   useEditorSync({ value, initialElements, onChange, initialTemplates, onTemplatesChange });
+  const store = useStore();
+  // 暴露 getData():读取本实例 store 的最新 templates/elements(不订阅,无重渲染开销)
+  useImperativeHandle(
+    ref,
+    () => ({
+      getData: () => ({
+        templates: store.get(templatesAtom),
+        elements: store.get(elementsAtom),
+      }),
+    }),
+    [store],
+  );
   const zoom = useAtomValue(zoomAtom);
   const selectedIds = useAtomValue(selectedIdsAtom);
   const previewMode = useAtomValue(previewModeAtom);
@@ -100,19 +152,31 @@ function EditorInner({ value, initialElements, onChange, initialTemplates, onTem
             <Palette />
             <div className={styles.body}>
               <aside className={styles.treeSide}>
-                <div className={styles.sideHeader}>组件树</div>
-                <div className={styles.sideBody}>
-                  <ComponentTree />
-                </div>
+                {leftPanelTitle !== null && (
+                  <div className={styles.sideHeader}>{leftPanelTitle ?? "组件树"}</div>
+                )}
+                {leftPanel !== undefined ? (
+                  leftPanel
+                ) : (
+                  <div className={styles.sideBody}>
+                    <ComponentTree />
+                  </div>
+                )}
               </aside>
               <div className={styles.canvasWrap}>
                 <Canvas dndActive={!!activeType} />
               </div>
               <aside className={styles.side}>
-                <div className={styles.sideHeader}>属性</div>
-                <div className={styles.sideBody}>
-                  <PropertiesPanel />
-                </div>
+                {rightPanelTitle !== null && (
+                  <div className={styles.sideHeader}>{rightPanelTitle ?? "属性"}</div>
+                )}
+                {rightPanel !== undefined ? (
+                  rightPanel
+                ) : (
+                  <div className={styles.sideBody}>
+                    <PropertiesPanel />
+                  </div>
+                )}
               </aside>
             </div>
           </>
@@ -125,4 +189,4 @@ function EditorInner({ value, initialElements, onChange, initialTemplates, onTem
       </DragOverlay>
     </DndContext>
   );
-}
+});

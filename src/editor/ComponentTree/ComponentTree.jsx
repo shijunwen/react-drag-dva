@@ -8,19 +8,25 @@ import {
   reorderContainerAtom,
   moveElementToContainerAtom,
   dropElementAtom,
+  deleteElementsAtom,
+  toggleElementLockAtom,
+  renameElementAtom,
   templatesAtom,
   setActiveTemplateAtom,
 } from "@/atoms";
 import { ELEMENT_ICONS } from "../elements";
 import { useTreeData } from "./hooks/useTreeData";
 import { useTreeDnd } from "./hooks/useTreeDnd";
+import TreeNodeTitle from "./components/TreeNodeTitle";
 import styles from "./ComponentTree.module.less";
 
 /**
- * 纯数据节点 -> antd Tree 节点(带 JSX title)。展示逻辑:图标/徽标/标签。
- * setActiveTemplate 为稳定 atom setter,作参数传入避免闭包到模块级。
+ * 纯数据节点 -> antd Tree 节点(带 JSX title)。展示逻辑:图标/徽标/标签/操作。
+ * handlers 全部为稳定引用(useSetAtom / useCallback),保证 TreeNodeTitle 的 memo 生效。
+ * - 模板节点:点击切换激活模板,显示子元素计数;不可锁定/删除(其增删在属性面板)。
+ * - 元素节点:TreeNodeTitle 渲染,支持 hover 锁定/删除 + 双击重命名。
  */
-function toAntdNode(node, setActiveTemplate) {
+function toAntdNode(node, handlers) {
   // 模板节点
   if (node.templateId !== undefined) {
     return {
@@ -28,7 +34,7 @@ function toAntdNode(node, setActiveTemplate) {
       title: (
         <span
           className={styles.treeNode}
-          onClick={() => setActiveTemplate(node.templateId)}
+          onClick={() => handlers.setActiveTemplate(node.templateId)}
           role="button"
           tabIndex={0}
         >
@@ -38,7 +44,7 @@ function toAntdNode(node, setActiveTemplate) {
       ),
       isLeaf: false,
       selectable: false,
-      children: node.children?.map((c) => toAntdNode(c, setActiveTemplate)),
+      children: node.children?.map((c) => toAntdNode(c, handlers)),
     };
   }
   // 元素节点
@@ -46,16 +52,21 @@ function toAntdNode(node, setActiveTemplate) {
   return {
     key: node.key,
     title: (
-      <span className={styles.treeNode}>
-        {Icon && <Icon />}
-        <span className={styles.treeNodeLabel}>{node.label}</span>
-        {node.locked ? <span className={styles.treeBadge}>锁定</span> : null}
-        {node.hidden ? <span className={styles.treeBadge}>隐藏</span> : null}
-      </span>
+      <TreeNodeTitle
+        id={node.key}
+        icon={Icon}
+        label={node.label}
+        placeholder={node.typeLabel}
+        locked={node.locked}
+        hidden={node.hidden}
+        onRename={handlers.handleRename}
+        onToggleLock={handlers.handleToggleLock}
+        onDelete={handlers.handleDelete}
+      />
     ),
     isLeaf: !node.isContainer,
     children: node.isContainer
-      ? node.children?.map((c) => toAntdNode(c, setActiveTemplate))
+      ? node.children?.map((c) => toAntdNode(c, handlers))
       : undefined,
   };
 }
@@ -73,9 +84,17 @@ export default function ComponentTree() {
   const moveElementToContainer = useSetAtom(moveElementToContainerAtom);
   const dropElement = useSetAtom(dropElementAtom);
   const setActiveTemplate = useSetAtom(setActiveTemplateAtom);
+  const deleteElements = useSetAtom(deleteElementsAtom);
+  const toggleElementLock = useSetAtom(toggleElementLockAtom);
+  const renameElement = useSetAtom(renameElementAtom);
 
   const { treeNodes, expandedKeys, handleExpand } = useTreeData(elements, templates);
   const handleDrop = useTreeDnd({ elements, reorderContainer, moveElementToContainer, dropElement });
+
+  // 稳定回调(useSetAtom setter 稳定):以 id 为首参,供 TreeNodeTitle memo 生效
+  const handleDelete = useCallback((id) => deleteElements([id]), [deleteElements]);
+  const handleToggleLock = useCallback((id) => toggleElementLock({ id }), [toggleElementLock]);
+  const handleRename = useCallback((id, name) => renameElement({ id, name }), [renameElement]);
 
   const handleSelect = useCallback(
     (selectedKeys, info) => {
@@ -89,8 +108,11 @@ export default function ComponentTree() {
   );
 
   const treeData = useMemo(
-    () => treeNodes.map((node) => toAntdNode(node, setActiveTemplate)),
-    [treeNodes, setActiveTemplate],
+    () =>
+      treeNodes.map((node) =>
+        toAntdNode(node, { setActiveTemplate, handleDelete, handleToggleLock, handleRename }),
+      ),
+    [treeNodes, setActiveTemplate, handleDelete, handleToggleLock, handleRename],
   );
 
   return (

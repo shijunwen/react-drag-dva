@@ -1,6 +1,6 @@
 // Type declarations for react-drag-dva
 import type { Atom, WritableAtom, PrimitiveAtom } from "jotai";
-import type { ComponentType, FC, ReactNode } from "react";
+import type { ComponentType, FC, ReactNode, ForwardRefExoticComponent, RefAttributes } from "react";
 
 /* ============================ 基础类型 ============================ */
 
@@ -53,6 +53,8 @@ export interface EditorElement {
   locked?: boolean;
   /** 隐藏:不渲染(保留数据) */
   hidden?: boolean;
+  /** 实例名称(null 时回退为类型 label;组件树/属性面板可改) */
+  name?: string | null;
   /** 类型专属属性(text/fill/src/label 等) */
   props: Record<string, unknown>;
 }
@@ -136,13 +138,35 @@ export interface EditorProps {
   onTemplatesChange?: (templates: EditorTemplate[]) => void;
   /** 顶部自定义 chrome(如工具栏),在 Editor 的 Jotai store 内渲染,可用 useEditor()/atoms 与本实例联动 */
   children?: ReactNode;
+  /** 左侧面板内容。提供则替换默认组件树(在 Provider/DndContext 内,可用 useEditor());
+   *  欲同时保留默认树可在此嵌入 <ComponentTree/> */
+  leftPanel?: ReactNode;
+  /** 左侧面板标题;undefined=「组件树」,null=隐藏标题 */
+  leftPanelTitle?: ReactNode;
+  /** 右侧面板内容。提供则替换默认属性面板(在 Provider/DndContext 内,可用 useEditor());
+   *  欲同时保留默认面板可在此嵌入 <PropertiesPanel/> */
+  rightPanel?: ReactNode;
+  /** 右侧面板标题;undefined=「属性」,null=隐藏标题 */
+  rightPanelTitle?: ReactNode;
 }
 
-/** 可视化拖拽编辑器 */
-export const Editor: FC<EditorProps>;
+/** 编辑器命令式句柄:通过 <Editor ref={ref} /> 取得,供 Provider 外部父组件调用 */
+export interface EditorHandle {
+  /** 获取当前画布全部数据快照(templates + elements) */
+  getData(): { templates: EditorTemplate[]; elements: EditorElement[] };
+}
+
+/** 可视化拖拽编辑器(支持 ref 获取 EditorHandle) */
+export const Editor: ForwardRefExoticComponent<EditorProps & RefAttributes<EditorHandle>>;
 
 /** 纯渲染预览态(读 atoms,无编辑能力) */
 export const Preview: FC<Record<string, never>>;
+
+/** 默认组件树(可嵌入自定义 leftPanel 中组合使用) */
+export const ComponentTree: FC<Record<string, never>>;
+
+/** 默认属性面板(可嵌入自定义 rightPanel 中组合使用) */
+export const PropertiesPanel: FC<Record<string, never>>;
 
 /* ============================ useEditor Hook ============================ */
 
@@ -169,6 +193,9 @@ export interface useEditorReturn {
   setElementUnit: (args: { id: string; unit: Unit }) => void;
   beginChange: () => void;
   deleteSelected: () => void;
+  deleteElements: (ids: string[]) => void;
+  toggleElementLock: (args: { id: string }) => void;
+  renameElement: (args: { id: string; name: string }) => void;
   select: (ids: string[]) => void;
   toggleSelect: (id: string) => void;
   clearSelection: () => void;
@@ -214,6 +241,9 @@ export const updateElementsAtom: WritableAtom<
 >;
 export const setElementUnitAtom: WritableAtom<null, [{ id: string; unit: Unit }]>;
 export const deleteSelectedAtom: WritableAtom<null, []>;
+export const deleteElementsAtom: WritableAtom<null, [string[]]>;
+export const toggleElementLockAtom: WritableAtom<null, [{ id: string }]>;
+export const renameElementAtom: WritableAtom<null, [{ id: string; name: string }]>;
 export const groupSelectedAtom: WritableAtom<null, []>;
 export const ungroupSelectedAtom: WritableAtom<null, []>;
 export const alignSelectedAtom: WritableAtom<null, [AlignDir]>;

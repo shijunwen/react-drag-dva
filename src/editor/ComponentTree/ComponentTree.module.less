@@ -8,26 +8,161 @@
 .tree {
   flex: 1;
   overflow: auto;
-  padding: 8px;
+  padding: 6px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  color: var(--color-text);
+
+  /* 整行高亮:背景作用于 treenode(含缩进/箭头列),选中/hover 不再割裂 */
+  :global(.ant-tree-treenode) {
+    border-radius: var(--radius-sm);
+    padding: 1px 0;
+    transition: background var(--transition-fast);
+  }
+
+  :global(.ant-tree-treenode:hover) {
+    background: rgba(var(--color-primary-rgb), 0.06);
+  }
+
+  /* antd 选中类名挂在 content-wrapper 上,用 :has 提升到整行 */
+  :global(.ant-tree-treenode:has(.ant-tree-node-selected)) {
+    background: rgba(var(--color-primary-rgb), 0.1);
+  }
+
+  /* content-wrapper 全态透明:背景统一由 treenode 整行承载,避免双层背景与色差 */
+  :global(.ant-tree-node-content-wrapper) {
+    display: flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 6px;
+    background: transparent;
+  }
+
+  :global(.ant-tree-node-content-wrapper:hover),
+  :global(.ant-tree-node-content-wrapper.ant-tree-node-selected) {
+    background: transparent;
+  }
+
+  /* title 占满,让内部 treeNode flex 布局可用 */
+  :global(.ant-tree-title) {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* 收窄箭头列,消除无箭头叶节点的大间隔 */
+  :global(.ant-tree-switcher) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    min-width: 20px;
+    color: var(--color-text-muted);
+  }
+
+  /* 重命名输入:紧凑贴合行高 */
+  :global(.ant-input) {
+    height: 24px;
+    font-size: 13px;
+    border-radius: var(--radius-sm);
+  }
 }
 
 .treeNode {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
+  min-width: 0;
+}
+
+.treeIcon {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  transition: color var(--transition-fast);
+}
+
+/* 选中行:图标跟随主色 */
+.tree :global(.ant-tree-node-content-wrapper.ant-tree-node-selected) .treeIcon {
+  color: var(--color-primary);
 }
 
 .treeNodeLabel {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: inherit;
+  cursor: default;
+}
+
+/* 锁定节点:标签弱化 */
+.nodeLocked .treeNodeLabel {
+  color: var(--color-text-muted);
 }
 
 .treeBadge {
-  background: rgba(120, 144, 156, 0.12);
-  color: rgba(55, 65, 81, 0.85);
+  flex-shrink: 0;
+  background: var(--color-border-subtle);
+  color: var(--color-text-muted);
   border-radius: 10px;
   padding: 0 6px;
-  font-size: 11px;
-  line-height: 1.5;
+  font-size: 10px;
+  line-height: 16px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
+/* hover 操作按钮容器:默认隐藏,hover 节点或节点已锁定时显示 */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-left: 2px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.treeNode:hover .actions,
+.nodeLocked .actions {
+  opacity: 1;
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 12px;
+  transition: background var(--transition-fast), color var(--transition-fast);
+
+  &:hover {
+    background: var(--color-border-subtle);
+    color: var(--color-text);
+  }
+
+  /* 删除按钮 hover 走危险色 */
+  &.danger:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+  }
+
+  /* 锁定按钮激活态(已锁定时常显为主色) */
+  &.active {
+    color: var(--color-primary);
+  }
+
+  &.active:hover {
+    background: rgba(var(--color-primary-rgb), 0.1);
+    color: var(--color-primary);
+  }
 }

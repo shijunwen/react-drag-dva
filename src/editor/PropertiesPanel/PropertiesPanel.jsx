@@ -47,21 +47,26 @@ const Z_ACTIONS = [
   { to: "front", label: "置顶" },
 ];
 
-/** 模板重命名输入:本地草稿,Enter/blur 提交,外部 name 变化时同步 */
-function TemplateNameField({ name, onCommit }) {
+/** 名称输入:本地草稿,Enter/blur 提交,外部 name 变化时同步。
+ *  allowEmpty=true 时允许清空(元素名清空回退类型 label);false 时清空作废(模板名不可空)。 */
+function NameField({ name, placeholder, onCommit, allowEmpty = false }) {
   const [draft, setDraft] = useState(name);
   useEffect(() => {
     setDraft(name);
   }, [name]);
   const commit = () => {
     const trimmed = draft.trim();
-    if (trimmed && trimmed !== name) onCommit(trimmed);
-    else setDraft(name);
+    if (trimmed === name || (!trimmed && !allowEmpty)) {
+      setDraft(name);
+      return;
+    }
+    onCommit(trimmed);
   };
   return (
     <Input
       size="small"
       value={draft}
+      placeholder={placeholder}
       onChange={(e) => setDraft(e.target.value)}
       onPressEnter={commit}
       onBlur={commit}
@@ -122,7 +127,7 @@ const CanvasConfig = memo(function CanvasConfig() {
       </div>
       <div className={styles.field}>
         <span className={styles.label}>名称</span>
-        <TemplateNameField
+        <NameField
           name={active.name}
           onCommit={(name) => renameTemplate({ id: active.id, name })}
         />
@@ -165,6 +170,7 @@ const PropertiesPanel = memo(function PropertiesPanel() {
     groupSelected,
     ungroupSelected,
     reorderZ,
+    renameElement,
   } = useEditor();
   const single = selectedElements.length === 1 ? selectedElements[0] : null;
   // 类型专属属性编辑器:优先自定义 Props;否则回退到 inspector schema 自动生成;都没有则不渲染
@@ -185,6 +191,20 @@ const PropertiesPanel = memo(function PropertiesPanel() {
         <CanvasConfig />
       ) : single ? (
         <>
+          <section className={styles.section}>
+            <Text type="secondary" className={styles.sectionTitle}>
+              组件
+            </Text>
+            <div className={styles.field}>
+              <span className={styles.label}>名称</span>
+              <NameField
+                name={single.name ?? ""}
+                placeholder={def?.label ?? single.type}
+                allowEmpty
+                onCommit={(name) => renameElement({ id: single.id, name })}
+              />
+            </div>
+          </section>
           <section className={styles.section}>
             <Text type="secondary" className={styles.sectionTitle}>
               位置与大小

@@ -87,10 +87,12 @@ export const setElementsAtom = atom(null, (get, set, elements) => {
   set(futureAtom, []);
 });
 
-/** 删除选中（级联删除容器内的子孙元素） */
-export const deleteSelectedAtom = atom(null, (get, set) => {
-  const ids = get(selectedIdsAtom);
-  if (!ids.length) return;
+/**
+ * 按 id 删除元素(级联删除容器内的子孙元素),并清理受影响的选中。
+ * 供组件树「删除单个元素」与 deleteSelectedAtom 复用,消除重复级联逻辑。
+ */
+export const deleteElementsAtom = atom(null, (get, set, ids) => {
+  if (!ids?.length) return;
   set(beginChangeAtom);
   const els = get(elementsAtom);
   const childrenMap = buildChildrenMap(els);
@@ -107,7 +109,37 @@ export const deleteSelectedAtom = atom(null, (get, set) => {
     }
   }
   set(elementsAtom, (list) => list.filter((el) => !toDelete.has(el.id)));
-  set(selectedIdsAtom, []);
+  // 清理已不存在的选中(删选中时自然清空,删非选中时仅剔除被删项)
+  const sel = get(selectedIdsAtom);
+  if (sel.length) {
+    const nextSel = sel.filter((sid) => !toDelete.has(sid));
+    if (nextSel.length !== sel.length) set(selectedIdsAtom, nextSel);
+  }
+});
+
+/** 删除选中(委托 deleteElementsAtom) */
+export const deleteSelectedAtom = atom(null, (get, set) => {
+  set(deleteElementsAtom, get(selectedIdsAtom));
+});
+
+/* ----------------------------- 锁定 / 重命名 ----------------------------- */
+
+/** 切换单个元素锁定状态(一条历史),供组件树/属性面板复用 */
+export const toggleElementLockAtom = atom(null, (get, set, { id }) => {
+  const el = get(elementsAtom).find((e) => e.id === id);
+  if (!el) return;
+  set(beginChangeAtom);
+  set(elementsAtom, (list) => patchElement(list, id, { locked: !el.locked }));
+});
+
+/** 重命名元素(空白归 null 以回退类型 label;无变化不记历史) */
+export const renameElementAtom = atom(null, (get, set, { id, name }) => {
+  const el = get(elementsAtom).find((e) => e.id === id);
+  if (!el) return;
+  const next = (name ?? "").trim() || null;
+  if (el.name === next) return;
+  set(beginChangeAtom);
+  set(elementsAtom, (list) => patchElement(list, id, { name: next }));
 });
 
 /* ----------------------------- 分组 / 合并 ----------------------------- */

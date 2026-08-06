@@ -12,6 +12,8 @@ import "./editor/tokens.less";
 // 主组件
 export { default as Editor } from "./editor/Editor";
 export { default as DraggableElement } from "./editor/DraggableElement";
+export { default as ComponentTree } from "./editor/ComponentTree";
+export { default as PropertiesPanel } from "./editor/PropertiesPanel/PropertiesPanel";
 export { Preview } from "./editor/Preview";
 
 // 编程式访问
@@ -37,6 +39,9 @@ export {
   updateElementsAtom,
   setElementUnitAtom,
   deleteSelectedAtom,
+  deleteElementsAtom,
+  toggleElementLockAtom,
+  renameElementAtom,
   selectAtom,
   toggleSelectAtom,
   clearSelectionAtom,
