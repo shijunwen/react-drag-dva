@@ -9,6 +9,7 @@ import BoardResizer from "./BoardResizer";
 import Board from "./components/Board";
 import RulerGuides from "./components/RulerGuides";
 import ZoomBar from "./components/ZoomBar";
+import MarqueeSelect from "./components/MarqueeSelect";
 import { useCanvasViewport } from "./hooks/useCanvasViewport";
 import { useGuidesSync } from "./hooks/useGuidesSync";
 import { useDndBoardHitTest } from "./hooks/useDndBoardHitTest";
@@ -29,7 +30,6 @@ export default function Canvas({ dndActive }) {
     selectedIds,
     select,
     toggleSelect,
-    clearSelection,
     templates,
     activeTemplateId,
     templateColumns,
@@ -42,7 +42,7 @@ export default function Canvas({ dndActive }) {
 
   // 网格吸附:本地 UI 状态,MoveableLayer 与 ZoomBar 共用
   const [gridSnapEnabled, setGridSnapEnabled] = useState(true);
-  const [gridSnapSize, setGridSnapSize] = useState(20);
+  const [gridSnapSize, setGridSnapSize] = useState(6);
 
   const viewerRef = useRef(null);
   const gridRef = useRef(null);
@@ -51,6 +51,8 @@ export default function Canvas({ dndActive }) {
   const elementRefs = useRef(new Map());
   const moveableRef = useRef(null);
   const canvasWrapRef = useRef(null);
+  // 唯一尺寸标签 DOM(选中/框选共用),由 useMoveableGestures / MarqueeSelect 命令式定位
+  const sizeLabelRef = useRef(null);
 
   const zoom = useAtomValue(zoomAtom);
   const store = useStore();
@@ -89,7 +91,6 @@ export default function Canvas({ dndActive }) {
     setActiveTemplate,
     select,
     toggleSelect,
-    clearSelection,
   });
 
   const registerRef = useCallback((id, node) => {
@@ -123,6 +124,8 @@ export default function Canvas({ dndActive }) {
 
   return (
     <div className={styles.canvas} ref={canvasWrapRef}>
+      {/* 选中/框选的尺寸标签(唯一实例,命令式定位) */}
+      <div ref={sizeLabelRef} className={styles.elementSizeLabel} />
       {/* 覆盖层用于显示辅助线 */}
       <RulerGuides
         zoom={zoom}
@@ -144,7 +147,7 @@ export default function Canvas({ dndActive }) {
             useMouseDrag={canDrag}
             usePinch
             useWheelPinch
-            useWheelScroll={canDrag}
+            useWheelScroll={!dndActive}
             useGesture
             useAutoZoom
             zoom={zoom}
@@ -179,15 +182,30 @@ export default function Canvas({ dndActive }) {
                   onRename={handleBoardRename}
                   onDuplicate={handleBoardDuplicate}
                   onDelete={handleBoardDelete}
+                  horizontalGuides={activeTemplateId === tpl.id ? horizontalGuides : undefined}
+                  verticalGuides={activeTemplateId === tpl.id ? verticalGuides : undefined}
                 />
               ))}
+              {/* MarqueeSelect 放在 gridRef 内部，让 react-selecto 自动取 gridRef 为 container */}
+              <MarqueeSelect
+                canvasWrapRef={canvasWrapRef}
+                moveableRef={moveableRef}
+                sizeLabelRef={sizeLabelRef}
+                zoom={zoom}
+                dndActive={dndActive}
+                canDrag={canDrag}
+              />
             </div>
             <MoveableLayer
               viewerRef={viewerRef}
               elementRefs={elementRefs}
               moveableRef={moveableRef}
+              canvasWrapRef={canvasWrapRef}
+              sizeLabelRef={sizeLabelRef}
               gridSnapEnabled={gridSnapEnabled}
               gridSnapSize={gridSnapSize}
+              horizontalGuides={horizontalGuides}
+              verticalGuides={verticalGuides}
             />
             {/* 无选中时:对激活板开启 resize(复用 react-moveable),与元素 moveable 互斥避免控制柄冲突 */}
             {!selectedIds.length && (

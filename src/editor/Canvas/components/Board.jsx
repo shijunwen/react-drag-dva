@@ -5,6 +5,12 @@ import { CopyOutlined, DeleteOutlined } from "@ant-design/icons";
 import CanvasElement from "../CanvasElement";
 import styles from "../Canvas.module.less";
 
+// 标尺辅助线吸附标记:0 尺寸 + pointerEvents:none -> 不可见、不挡事件、不入选区/elementRefs。
+// 横跨画板宽/高以保证 checkBetweenRects 的范围重叠(目标在画板内 -> 不过滤)。
+// moveable 经 elementGuidelines 读其 getBoundingClientRect,在手势中显示蓝色吸附线。
+const H_GUIDE_STYLE = { position: "absolute", left: 0, right: 0, height: 0, pointerEvents: "none" };
+const V_GUIDE_STYLE = { position: "absolute", top: 0, bottom: 0, width: 0, pointerEvents: "none" };
+
 /**
  * 单个模板画板。memo 化:仅自身 props 变化时重渲染(CanvasElement 自身也 memo,
  * 未变元素不会重渲染)。每个 board 是独立的 useDroppable 目标,接收面板拖放。
@@ -22,6 +28,8 @@ const Board = memo(function Board({
   onRename,
   onDuplicate,
   onDelete,
+  horizontalGuides,
+  verticalGuides,
 }) {
   const { setNodeRef } = useDroppable({ id: `template-${template.id}` });
   const [editing, setEditing] = useState(false);
@@ -98,6 +106,13 @@ const Board = memo(function Board({
             registerRef={registerRef}
             elementRefs={elementRefs}
           />
+        ))}
+        {/* 标尺辅助线吸附标记(仅激活画板由 Canvas 传入 guides):moveable elementGuidelines 源 */}
+        {horizontalGuides?.map((g, i) => (
+          <div key={`snap-h-${i}`} data-snap-guide="h" style={{ ...H_GUIDE_STYLE, top: `${g}px` }} />
+        ))}
+        {verticalGuides?.map((g, i) => (
+          <div key={`snap-v-${i}`} data-snap-guide="v" style={{ ...V_GUIDE_STYLE, left: `${g}px` }} />
         ))}
       </div>
     </div>

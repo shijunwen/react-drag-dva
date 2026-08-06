@@ -129,6 +129,27 @@ export function expandGroupSelection(elements, ids) {
 }
 
 /**
+ * 容器-子孙去重:若某元素的任一祖先容器也在选中集合内,则剔除该元素。
+ * 用于框选:命中容器时不再单独选中其内部子组件(与「单击选中容器」行为一致,
+ * 避免子组件被额外高亮/加 moveable 控制柄)。容器未命中时子组件照常可选。
+ * @param {object[]} elements - 全部元素
+ * @param {string[]} ids - 候选选中 id
+ * @returns {string[]} 去重后的 id 列表(保持原顺序)
+ */
+export const excludeDescendantsOfSelected = (elements, ids) => {
+  const byId = new Map(elements.map((el) => [el.id, el]));
+  const idSet = new Set(ids);
+  return ids.filter((id) => {
+    let parentId = byId.get(id)?.parentId ?? null;
+    while (parentId) {
+      if (idSet.has(parentId)) return false;
+      parentId = byId.get(parentId)?.parentId ?? null;
+    }
+    return true;
+  });
+};
+
+/**
  * 计算选中元素所属分组的全部成员 id 集合。
  * 选中某分组任一成员时,整组成员都视为「分组选中」(高亮/一起操作)。
  * @param {object[]} elements - 全部元素
@@ -159,15 +180,17 @@ export const isEditable = (el) => {
 export const patchElement = (elements, id, patch) =>
   elements.map((el) => (el.id === id ? { ...el, ...patch, props: patch.props ? { ...el.props, ...patch.props } : el.props } : el));
 
-/** 不可变批量更新 */
+/**
+ * 不可变批量更新。patches 形状与 patchElement 的 patch 参数对齐:
+ * `[{ id, patch: { x, y, ... } }]`--取出 patch 再展开到对应元素,
+ * 切勿整项展开(否则会把 `patch` 字段本身写到元素上,而非 x/y)。
+ */
 export const patchElements = (elements, patches) => {
-  const map = new Map(patches.map((p) => [p.id, p]));
+  const map = new Map(patches.map((p) => [p.id, p.patch]));
   return elements.map((el) => {
-    const p = map.get(el.id);
-    if (!p) return el;
-    const rest = { ...p };
-    delete rest.id;
-    return { ...el, ...rest };
+    const patch = map.get(el.id);
+    if (!patch) return el;
+    return { ...el, ...patch, props: patch.props ? { ...el.props, ...patch.props } : el.props };
   });
 };
 

@@ -48,7 +48,7 @@ export const updateElementAtom = atom(null, (get, set, { id, patch }) => {
   set(elementsAtom, (els) => patchElement(els, id, patch));
 });
 
-/** 实时批量更新（分组拖拽/缩放进行中，不记历史） */
+/** 实时批量更新（分组拖拽/缩放进行中，不记历史）。patches 形状: [{ id, patch: { x, y, ... } }] */
 export const updateElementsAtom = atom(null, (get, set, patches) => {
   set(elementsAtom, (els) => patchElements(els, patches));
 });

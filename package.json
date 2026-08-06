@@ -67,7 +67,8 @@
     "react": ">=18",
     "react-dom": ">=18",
     "react-infinite-viewer": ">=0.28",
-    "react-moveable": ">=0.56"
+    "react-moveable": ">=0.56",
+    "react-selecto": ">=1.26"
   },
   "devDependencies": {
     "@ant-design/icons": "^6.1.1",
@@ -87,6 +88,7 @@
     "react-dom": "^18.3.1",
     "react-infinite-viewer": "^0.28.1",
     "react-moveable": "^0.56.0",
+    "react-selecto": "^1.26.3",
     "vite": "^5.4.2",
     "vitest": "^4.1.10"
   }

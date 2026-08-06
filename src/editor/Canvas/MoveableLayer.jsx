@@ -7,13 +7,17 @@ import { useMoveableGestures } from "./hooks/useMoveableGestures";
  * 性能策略:手势过程中只写 DOM(零 React 重渲染),手势结束才提交到 atoms;
  * 仅订阅 elementsAtom/selectedIdsAtom/templatesAtom/zoomAtom(不订 past/future)。
  */
-function MoveableLayer({ elementRefs, moveableRef, viewerRef, gridSnapEnabled, gridSnapSize }) {
+function MoveableLayer({ elementRefs, moveableRef, viewerRef, canvasWrapRef, sizeLabelRef, gridSnapEnabled, gridSnapSize, horizontalGuides, verticalGuides }) {
   const { targets, isGroup, moveableProps } = useMoveableGestures({
     elementRefs,
     moveableRef,
     viewerRef,
+    canvasWrapRef,
+    sizeLabelRef,
     gridSnapEnabled,
     gridSnapSize,
+    horizontalGuides,
+    verticalGuides,
   });
 
   if (!targets.length) return null;

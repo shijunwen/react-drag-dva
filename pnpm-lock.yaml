@@ -17,9 +17,6 @@ devDependencies:
   '@scena/react-guides':
     specifier: ^0.28.2
     version: 0.28.2
-  '@scena/react-ruler':
-    specifier: ^0.19.0
-    version: 0.19.0
   '@vitejs/plugin-react':
     specifier: ^4.3.1
     version: 4.3.1(vite@5.4.2)
@@ -59,6 +56,9 @@ devDependencies:
   react-moveable:
     specifier: ^0.56.0
     version: 0.56.0
+  react-selecto:
+    specifier: ^1.26.3
+    version: 1.26.3
   vite:
     specifier: ^5.4.2
     version: 5.4.2(less@4.6.4)

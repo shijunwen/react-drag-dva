@@ -77,3 +77,26 @@ export const SNAP_DIST_FORMAT = (v) => `${v}px`;
 export const ZERO_SCROLL_POS = [0, 0];
 export const GET_SCROLL_POSITION = () => ZERO_SCROLL_POS;
 export const FALLBACK_SIZE = { width: CANVAS_WIDTH, height: CANVAS_HEIGHT };
+
+/** 尺寸标签文本:宽按 unit(% 或 px),高始终 px */
+export const formatSizeLabel = (width, height, unit = "px") =>
+  `${unit === "%" ? `${round(width, 2)}%` : `${Math.round(width)}px`} × ${Math.round(height)}px`;
+
+/**
+ * 尺寸标签定位:把标签放到指定屏幕矩形(选中框 / 框选框)下方居中并写入文本。
+ * labelEl 位于 canvasWrap(未变换层)内,故用屏幕矩形减去 wrap 偏移换算;
+ * 标签不随画布缩放(transform 仅做居中),任意 zoom 下保持可读。
+ * visible=false / 缺参时隐藏。
+ */
+export const applySizeLabel = (labelEl, wrapEl, screenRect, text, visible) => {
+  if (!labelEl) return;
+  if (!visible || !screenRect || !wrapEl) {
+    labelEl.style.display = "none";
+    return;
+  }
+  const wrapRect = wrapEl.getBoundingClientRect();
+  labelEl.style.display = "block";
+  labelEl.style.left = `${screenRect.left - wrapRect.left + screenRect.width / 2}px`;
+  labelEl.style.top = `${screenRect.top - wrapRect.top + screenRect.height + 6}px`;
+  labelEl.textContent = text;
+};

@@ -31,6 +31,7 @@ export {
   toggleSelectAtom,
   clearSelectionAtom,
   dragOverContainerIdAtom,
+  marqueeActiveAtom,
 } from "./selection";
 
 export {

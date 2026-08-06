@@ -9,7 +9,7 @@ import { isEditable } from "../../utils";
 /**
  * 画布视口逻辑:zoom / pan / scroll / 空格键。
  * 自取 zoomAtom / setViewportAtom / setZoomAtom;入参 viewerRef / gridRef / dndActive / selectedIds。
- * 默认进入时 fitToView 居中(原 Canvas 初始 effect)。
+ * 默认进入时 fitToWidth 仅水平 fit + 水平居中(原 Canvas 初始 effect)。
  */
 export function useCanvasViewport({ viewerRef, gridRef, dndActive, selectedIds }) {
   // 空格键按下时才允许拖拽平移画布，避免与顶部拖入组件冲突
@@ -57,29 +57,27 @@ export function useCanvasViewport({ viewerRef, gridRef, dndActive, selectedIds }
   }, [canDrag, viewerRef]);
 
   /**
-   * 动态计算缩放使所有模板板完整可见且居中（contain 整个网格）。
+   * 动态计算缩放使所有模板板在水平方向完整可见并水平居中。
+   * 多板横向排列时,若同时按高度 contain,垂直约束会把缩放压得很小,
+   * 故只约束水平方向;垂直方向不 fit、不强制居中,首屏从顶部可见。
    */
-  const fitToView = useCallback(() => {
+  const fitToWidth = useCallback(() => {
     const viewer = viewerRef.current;
     const grid = gridRef.current;
     if (!viewer || !grid) return;
     const container = viewer.getContainer?.();
     const viewW = container?.clientWidth ?? 0;
-    const viewH = container?.clientHeight ?? 0;
-    if (!viewW || !viewH) return;
+    if (!viewW) return;
     const rect = grid.getBoundingClientRect();
     // 用网格的「逻辑尺寸」(屏幕尺寸 / 当前 zoom)还原为内容尺寸
     const contentW = rect.width / zoom;
-    const contentH = rect.height / zoom;
-    if (!contentW || !contentH) return;
-    const raw = Math.min(
-      (viewW - FIT_PADDING * 2) / contentW,
-      (viewH - FIT_PADDING * 2) / contentH,
-    );
+    if (!contentW) return;
+    const raw = (viewW - FIT_PADDING * 2) / contentW;
     const fit = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Math.min(1, raw)));
     viewer.setZoom(fit);
     requestAnimationFrame(() => {
-      viewer.scrollCenter({ absolute: true });
+      // 仅水平居中:多板场景下垂直方向内容常超出视口,垂直居中会让顶部不可见
+      viewer.scrollCenter({ absolute: true, vertical: false });
       setViewport({
         zoom: fit,
         scrollLeft: viewer.getScrollLeft(),
@@ -88,11 +86,11 @@ export function useCanvasViewport({ viewerRef, gridRef, dndActive, selectedIds }
     });
   }, [zoom, setViewport, viewerRef, gridRef]);
 
-  // 默认进入：动态计算缩放使画布完整可见且居中
+  // 默认进入:水平方向完整可见且居中(多板横向排列,不做垂直 contain)
   useEffect(() => {
     if (centeredRef.current || !viewerRef.current) return;
     centeredRef.current = true;
-    requestAnimationFrame(() => fitToView());
+    requestAnimationFrame(() => fitToWidth());
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

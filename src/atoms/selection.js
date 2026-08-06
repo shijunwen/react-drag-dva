@@ -35,3 +35,9 @@ export const clearSelectionAtom = atom(null, (get, set) => set(selectedIdsAtom, 
  * 的高亮走 useDroppable 的 isOver，与此独立。
  */
 export const dragOverContainerIdAtom = atom(null);
+
+/**
+ * 框选(react-selecto)是否正在进行。框选期间尺寸标签由 MarqueeSelect 接管
+ * (显示框选框尺寸),MoveableLayer 的选中尺寸标签据此隐藏,避免二者重叠。
+ */
+export const marqueeActiveAtom = atom(false);

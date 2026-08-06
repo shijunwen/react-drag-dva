@@ -32,7 +32,7 @@
   border-color: rgba(var(--color-primary-rgb), 0.5) !important;
 }
 
-/* 缩放手柄:白底主色描边的精密圆点(10px,负 margin -5px 校正居中) */
+/* 缩放手柄(四角):白底主色描边的精密圆点(10px,负 margin -5px 校正居中) */
 .moveable-control {
   width: 10px !important;
   height: 10px !important;
@@ -50,6 +50,37 @@
     background: var(--color-primary) !important;
     border-color: var(--color-bg-elevated) !important;
     box-shadow: 0 0 0 3px var(--color-primary-glow), 0 2px 6px rgba(15, 23, 42, 0.22) !important;
+  }
+}
+
+/* 四边方向 control(n/e/s/w):edge=true 后 resize 改用整边线(见下),这里的 n/e/s/w
+   control 仅剩 rotatable 的边中点旋转点。隐藏视觉并禁用命中,避免与整边 resize
+   争夺边中点——整边纯缩放,旋转经四角点 + 旋转手柄完成。
+   (双类选择器优先级高于基类;旋转手柄 .moveable-rotation-control 更具体,仍可见。) */
+.moveable-control.moveable-n,
+.moveable-control.moveable-e,
+.moveable-control.moveable-s,
+.moveable-control.moveable-w {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+}
+
+/* 整边缩放命中区:edge=true 渲染的 .moveable-edge 边线本身仅 1px,用对称 ::before
+   扩展为可拖拽整边热区(居中 12px,经 rotate 覆盖四边)。moveable 默认 ::before 单侧
+   且依赖 --moveable-line-padding(会同时加粗选中框连线、误拦画布点击),故这里独立覆盖、
+   不设 linePadding,只作用于带 .moveable-edge 的可拖拽边线。hover 叠加主色淡带提示。 */
+.moveable-line.moveable-direction.moveable-edge {
+  &::before {
+    top: 50% !important;
+    bottom: auto !important;
+    height: 12px !important;
+    transform: translateY(-50%) !important;
+  }
+
+  &:hover::before {
+    background: rgba(var(--color-primary-rgb), 0.15) !important;
   }
 }
 

@@ -9,6 +9,33 @@
   flex-direction: column;
 }
 
+/* MarqueeSelect 组件容器样式 */
+.marqueeSelect {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+}
+
+/* react-selecto 选择框样式 - 全局高优先级覆盖，使其明显可见 */
+:global(.selecto-selection) {
+  box-sizing: border-box !important;
+  position: absolute !important;
+  border: 2px solid var(--color-primary) !important;
+  background: rgba(var(--color-primary-rgb), 0.15) !important;
+  z-index: 9999 !important;
+  pointer-events: none !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8), 0 0 16px rgba(var(--color-primary-rgb), 0.35) !important;
+}
+
+/* 选中元素高亮边框 */
+:global(.selecto-selected) {
+  outline: 2px solid var(--color-primary) !important;
+  outline-offset: 0 !important;
+}
+
 /* 辅助线覆盖层 - 确保在最上层 */
 .guidesOverlay {
   position: absolute;
@@ -210,12 +237,14 @@
 }
 
 /* 多模板网格容器:repeat(N, max-content) 实现「一行 N 个」,N=1 即一行一个。
-   不设 min-width/width:100%——保持内容尺寸,scrollCenter 才能正确居中画板。 */
+   不设 min-width/width:100%——保持内容尺寸,scrollCenter 才能正确居中画板。
+   position: relative 确保 Selecto 选择框以网格为基准计算坐标。 */
 .boardGrid {
   display: grid;
   justify-content: start;
   align-content: start;
   width: max-content;
+  position: relative;
 }
 
 /* 单个模板单元:header + board 纵向排列 */
@@ -354,12 +383,16 @@
   box-shadow: 0 0 0 1px rgba(var(--color-accent-rgb), 0.15);
 }
 
-/* 选中元素下方显示的尺寸标签 */
+/*
+ * 选中/框选框的尺寸标签(唯一实例,由 Canvas 渲染在 canvasWrap 内)。
+ * 位置由 applySizeLabel 命令式写入 left/top;transform 仅做水平居中(top 已贴框底),
+ * 不随画布缩放(标签在未变换层),任意 zoom 下保持可读。默认 display:none。
+ */
 .elementSizeLabel {
   position: absolute;
-  left: 50%;
-  bottom: -24px;
-  transform: translateX(-50%);
+  top: 0;
+  left: 0;
+  transform: translate(-50%, 0);
   padding: 2px 8px;
   font-size: 11px;
   font-family: var(--font-mono);
@@ -367,8 +400,9 @@
   background: var(--color-primary);
   border-radius: 4px;
   white-space: nowrap;
-  z-index: 5;
+  z-index: 9999;
   pointer-events: none;
+  display: none;
 }
 
 .text {

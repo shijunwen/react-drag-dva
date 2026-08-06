@@ -1,0 +1,48 @@
+/**
+ * react-infinite-viewer 自定义滚动条美化
+ *
+ * InfiniteViewer 以全局 DOM 注入自定义滚动条(.infinite-viewer-scroll-bar),
+ * 默认 thumb 为 #333 深色 + 6px->hover 10px 突变,在浅色画布上过于突兀,
+ * 暗色主题下又因 #333 近黑而几乎不可见。此处对齐项目原生滚动条配色
+ * (--color-border / --color-text-muted),收窄默认粗细、平滑 hover 过渡,
+ * 使其低调常显且随 prefers-color-scheme 自动适配明暗主题。
+ *
+ * 关键约束(thumb 由 ScrollBar.render 运行时以 inline style 设置):
+ * 1. thumb 的「长度」(vertical=height / horizontal=width 百分比)反映滚动比例,
+ *    opacity(可滚动才显隐)、transform(位置)同为 inline,不可覆盖。
+ * 2. 仅覆盖「粗细」(vertical=width / horizontal=height)、配色、圆角、过渡。
+ * 3. margin 须随粗细同步调整,以保持 thumb 在 14px scroll-bar 容器内居中。
+ * 4. 运行时注入 CSS 优先级与单类名相同,须用 !important 可靠覆盖(同 moveable.less)。
+ */
+
+.infinite-viewer-scroll-thumb {
+  background: var(--color-border) !important;
+  border-radius: 4px !important;
+  transition: width var(--transition-fast), height var(--transition-fast),
+    margin var(--transition-fast), background var(--transition-fast),
+    border-radius var(--transition-fast) !important;
+}
+
+.infinite-viewer-scroll-bar:hover .infinite-viewer-scroll-thumb {
+  background: var(--color-text-muted) !important;
+}
+
+/* 垂直滚动条:thumb 宽度(粗细)默认 4px、hover 8px;margin 居中(14px 容器) */
+.infinite-viewer-vertical-scroll-bar .infinite-viewer-scroll-thumb {
+  width: 4px !important;
+  margin: 0 5px !important;
+}
+.infinite-viewer-vertical-scroll-bar:hover .infinite-viewer-scroll-thumb {
+  width: 8px !important;
+  margin: 0 3px !important;
+}
+
+/* 水平滚动条:thumb 高度(粗细)默认 4px、hover 8px;margin 居中(14px 容器) */
+.infinite-viewer-horizontal-scroll-bar .infinite-viewer-scroll-thumb {
+  height: 4px !important;
+  margin: 5px 0 !important;
+}
+.infinite-viewer-horizontal-scroll-bar:hover .infinite-viewer-scroll-thumb {
+  height: 8px !important;
+  margin: 3px 0 !important;
+}
