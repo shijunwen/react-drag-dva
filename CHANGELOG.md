@@ -2,6 +2,39 @@
 
 本文件记录 react-drag-dva 的版本演进。版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [未发布]
+
+### 新增
+
+- **框选(MarqueeSelect)**:长按空白画布拖拽拉出矩形选框,Shift 叠加选区,点击空白清空;与 moveable 手柄 / 空间平移手势互斥,多画板实例隔离
+- **吸附距离显示**:拖拽 / 缩放时实时渲染与邻近元素的对齐辅助线及距离值
+- **组件树全代理**:`ComponentTree` 内联编辑(单击重命名 / blur 提交)、展开折叠全部、拖拽移入容器 / 移出到画布;右键菜单预留
+- **自定义左右面板 slot**:`Editor` 新增 `leftPanel` / `rightPanel` 插槽,可替换或扩展默认组件树 / 属性面板;内置 `DefaultLeftPanel` / `DefaultRightPanel` 组件供组合使用
+- **命令式 getData API**:`useEditor()` 新增 `getData()` 方法,返回 `{ templates, elements }` 当前编辑器全量数据,不触发 React 重渲染
+- **DraggableElement 组件库扩展**:新增 `DraggableElement` 公共导出,支持业务侧自定义可拖入组件类型与实时预览
+- **Schema 驱动属性面板**:元素定义新增 `propsSchema`(字段类型、默认值、校验),`SchemaProps` 组件根据 schema 自动生成 antd 表单控件,代替手写 `PropsPanel`
+- **元素编辑能力增强**:剪贴板(复制粘贴/剪切)、方向键微调(单步 1px / Shift 10px)、旋转手柄 + 角度吸附、网格吸附(移动 / 缩放)、锁定 / 隐藏元素、多画板(Template)实例隔离
+- **缩放边界约束**:移动 / 缩放限定画布边界与最小宽高(`MOVEABLE_MIN_SIZE`),防止拖出画布或缩至负尺寸
+- **Moveable 控制柄美化**:自定义 CSS 覆盖 `react-moveable` 默认控制柄样式(颜色 / 尺寸 / 圆角 / 阴影),匹配编辑器视觉系统
+
+### 修复
+
+- 画布拖拽开关未完全 / 彻底阻止平移的问题(多次修复覆盖三种触发路径)
+- `selectedIds` 初始化顺序导致的闪烁与误选
+- resize 抖动:拖拽热路径去每帧内存分配,移动停止时精确归位
+
+### 重构
+
+- **编辑器业务逻辑与组件展示分层分离**:Canvas 拆分为 `Board` / `CursorPos` / `RulerGuides` / `ZoomBar` / `BoardResizer` 子组件;Moveable 手势拆入 `useMoveableGestures` / `useSelectionCapture` / `useCanvasViewport` / `useGuidesSync` hook;画布缩放 / 平移逻辑进 `useCanvasViewport`;Editor 壳 hook 拆为 `useEditorShortcuts` / `usePaletteDnd`
+- **尺寸标签重构**:`SizeLabel` 从 CanvasElement 移到 MoveableLayer,跟随 moveable 手柄渲染,避免 React 重渲染
+
+### 工程
+
+- 依赖新增 `react-selecto`(框选)与 `@moveable/helper`(辅助线)
+- `CLAUDE.md` 架构文档同步更新,补充框选 / 容器 / 渲染路径 / 目录约定等新章节
+
+---
+
 ## [0.1.0] - 2026-08-01
 
 首个公开版本。

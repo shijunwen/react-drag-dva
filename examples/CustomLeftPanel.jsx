@@ -1,15 +1,35 @@
 import { useState, useEffect } from "react";
-import { Input, Button, Space, Tag, Empty } from "antd";
+import { Input, Empty } from "antd";
 import {
   LockOutlined,
   UnlockOutlined,
   DeleteOutlined,
+  BorderOutlined,
+  FontSizeOutlined,
+  AppstoreOutlined,
+  PictureOutlined,
+  RadiusSettingOutlined,
+  ContainerOutlined,
+  AimOutlined,
 } from "@ant-design/icons";
 import { useEditor } from "@/editor/useEditor";
 import { DEFAULT_TEMPLATE_ID } from "@/atoms";
+import { ELEMENT_TYPES } from "@/editor/elements";
 import styles from "./CustomLeftPanel.module.less";
 
-/** 名称编辑:本地草稿,Enter/blur 提交(避免每次按键都记一条历史) */
+/** 每种元素类型的图标映射 */
+const TYPE_ICONS = {
+  [ELEMENT_TYPES.TEXT]: FontSizeOutlined,
+  [ELEMENT_TYPES.RECT]: BorderOutlined,
+  [ELEMENT_TYPES.CIRCLE]: AimOutlined,
+  [ELEMENT_TYPES.IMAGE]: PictureOutlined,
+  [ELEMENT_TYPES.BUTTON]: RadiusSettingOutlined,
+  [ELEMENT_TYPES.CONTAINER]: ContainerOutlined,
+};
+
+const FALLBACK_ICON = AppstoreOutlined;
+
+/** 名称编辑：本地草稿，Enter/blur 提交 */
 function RenameInput({ name, placeholder, onCommit }) {
   const [draft, setDraft] = useState(name);
   useEffect(() => {
@@ -28,19 +48,19 @@ function RenameInput({ name, placeholder, onCommit }) {
       onChange={(e) => setDraft(e.target.value)}
       onPressEnter={commit}
       onBlur={commit}
+      className={styles.cardName}
     />
   );
 }
 
 /**
- * 自定义左侧面板演示(完全替换默认组件树)。
+ * 自定义左侧面板 — 精密制图工坊风格。
  *
- * 经 <Editor leftPanel={<CustomLeftPanel/>}> 渲染,处于 Editor 的
- * Jotai Provider / DndContext 内,故 useEditor() 直接可用 -- 选中/改名/锁定/删除
- * 全部代理到画布,与默认组件树同权。
+ * 经 <Editor leftPanel={<CustomLeftPanel/>}> 渲染，处于 Editor 的
+ * Jotai Provider / DndContext 内，useEditor() 直接可用。
  *
- * - 上:选中元素检视卡(改名/锁定/删除 + 尺寸元信息)
- * - 下:当前模板的顶层元素平铺列表(点击选中、行内锁定/删除)
+ * · 上方 — 选中元素检视卡（类型图标、改名、锁定/删除、尺寸元信息）
+ * · 下方 — 当前模板顶层元素平铺列表（类型图标、点击选中、hover 行内操作）
  */
 export function CustomLeftPanel() {
   const {
@@ -58,75 +78,98 @@ export function CustomLeftPanel() {
     selectedIds.length === 1
       ? elements.find((e) => e.id === selectedIds[0]) ?? null
       : null;
+
   const activeTpl = templates.find((t) => t.id === activeTemplateId);
   const list = elements.filter(
     (e) => !e.parentId && (e.templateId ?? DEFAULT_TEMPLATE_ID) === activeTemplateId,
   );
 
+  // 选中元素类型图标
+  const TypeIcon = selected ? (TYPE_ICONS[selected.type] ?? FALLBACK_ICON) : null;
+
   return (
     <div className={styles.wrap}>
+      {/* ---- 选中元素检视卡 ---- */}
       <section className={styles.section}>
         <div className={styles.sectionTitle}>选中元素</div>
         {selected ? (
           <div className={styles.card}>
-            <RenameInput
-              name={selected.name ?? ""}
-              placeholder={selected.type}
-              onCommit={(v) => renameElement({ id: selected.id, name: v })}
-            />
-            <Space size={6} wrap>
-              <Button
-                size="small"
-                icon={selected.locked ? <UnlockOutlined /> : <LockOutlined />}
-                onClick={() => toggleElementLock({ id: selected.id })}
-              >
-                {selected.locked ? "解锁" : "锁定"}
-              </Button>
-              <Button
-                size="small"
-                danger
-                icon={<DeleteOutlined />}
-                onClick={() => deleteElements([selected.id])}
-              >
-                删除
-              </Button>
-            </Space>
-            <div className={styles.meta}>
-              <Tag color="blue" bordered={false}>
-                {selected.type}
-              </Tag>
-              <span className={styles.dim}>
+            {/* 头部：图标 + 名称 + 操作 */}
+            <div className={styles.cardHead}>
+              <div className={styles.typeBadge}>
+                {TypeIcon && <TypeIcon />}
+              </div>
+              <RenameInput
+                name={selected.name ?? ""}
+                placeholder={selected.type}
+                onCommit={(v) => renameElement({ id: selected.id, name: v })}
+              />
+            </div>
+
+            {/* 元信息行：类型标签 + 尺寸 */}
+            <div className={styles.cardMeta}>
+              <span className={styles.metaTag}>{selected.type}</span>
+              <span className={styles.metaDim}>
                 {Math.round(selected.width)} × {Math.round(selected.height)}
               </span>
+              <span className={styles.metaDim}>
+                x: {Math.round(selected.x)}, y: {Math.round(selected.y)}
+              </span>
+            </div>
+
+            {/* 操作按钮行 */}
+            <div className={styles.cardActions}>
+              <button
+                type="button"
+                className={styles.actionBtn}
+                onClick={() => toggleElementLock({ id: selected.id })}
+              >
+                {selected.locked ? <><UnlockOutlined /> 解锁</> : <><LockOutlined /> 锁定</>}
+              </button>
+              <button
+                type="button"
+                className={`${styles.actionBtn} ${styles.danger}`}
+                onClick={() => deleteElements([selected.id])}
+              >
+                <DeleteOutlined /> 删除
+              </button>
             </div>
           </div>
         ) : (
-          <Empty description="未选中元素" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <div className={styles.empty}>
+            <Empty
+              description="点击画布元素以选中"
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+            />
+          </div>
         )}
       </section>
 
+      {/* ---- 元素列表 ---- */}
       <section className={styles.sectionGrow}>
         <div className={styles.sectionTitle}>
-          {activeTpl?.name ?? "模板"} · 顶层元素
+          {activeTpl?.name ?? "模板"} · 顶层
         </div>
         <div className={styles.list}>
           {list.length === 0 ? (
-            <Empty description="暂无元素" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            <Empty
+              description="从顶部面板拖入元素"
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+            />
           ) : (
             list.map((el) => {
               const isSelected = selectedIds.includes(el.id);
+              const IconComp = TYPE_ICONS[el.type] ?? FALLBACK_ICON;
+              const cls = `${styles.listItem}${isSelected ? ` ${styles.selected}` : ""}${el.locked ? ` ${styles.locked}` : ""}`;
               return (
                 <div
                   key={el.id}
-                  className={[
-                    styles.listItem,
-                    isSelected ? styles.selected : "",
-                    el.locked ? styles.locked : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
+                  className={cls}
                   onClick={() => select([el.id])}
                 >
+                  <span className={styles.listIcon}>
+                    <IconComp />
+                  </span>
                   <span className={styles.listName} title={el.name || el.type}>
                     {el.name || el.type}
                   </span>

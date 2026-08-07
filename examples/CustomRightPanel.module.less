@@ -1,11 +1,13 @@
+/* ===== 自定义右侧面板 — 精密制图工坊 ===== */
+
 .wrap {
   flex: 1;
   min-height: 0;
   overflow: auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 12px;
+  gap: 16px;
+  padding: 14px;
 }
 
 .empty {
@@ -17,19 +19,92 @@
   padding: 12px;
 }
 
+/* ---- 区块 ---- */
+
 .section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .sectionTitle {
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.08em;
+  font-weight: 600;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--color-text-label);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--color-border-subtle);
+  }
 }
+
+/* ---- 信息卡片 ---- */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-sm);
+  animation: fadeInCard 200ms ease;
+}
+
+@keyframes fadeInCard {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.typeBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-glow);
+  color: var(--color-primary);
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.cardName {
+  flex: 1;
+  min-width: 0;
+
+  :global(.ant-input-sm) {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    border-color: var(--color-border);
+    transition: border-color var(--transition-fast);
+
+    &:hover, &:focus {
+      border-color: var(--color-primary);
+    }
+  }
+}
+
+/* ---- 数值网格 ---- */
+
+/* ---- 数值网格 ---- */
 
 .grid {
   display: grid;
@@ -40,11 +115,72 @@
 .field {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--color-bg-container);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+
+  &:hover {
+    background: var(--color-border-subtle);
+  }
 }
 
 .label {
+  font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--color-text-muted);
-  min-width: 20px;
+  font-weight: 500;
+  color: var(--color-text-label);
+  min-width: 24px;
+  text-align: center;
+
+  :global(.ant-input-number-sm) {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    width: 100%;
+  }
+}
+
+/* ---- 操作按钮网格 ---- */
+
+.actionGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-family: var(--font-display);
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+
+  &:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: var(--color-primary-glow);
+  }
+
+  &.danger:hover {
+    border-color: #ef4444;
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.06);
+  }
+
+  &.accent:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    background: rgba(var(--color-accent-rgb), 0.06);
+  }
 }
