@@ -1,7 +1,8 @@
 import { useRef, useCallback, useMemo, useState } from "react";
 import InfiniteViewer from "react-infinite-viewer";
 import { useAtomValue, useStore } from "jotai";
-import { zoomAtom, DEFAULT_TEMPLATE_ID } from "@/atoms";
+import { zoomAtom } from "../../atoms/viewport";
+import { DEFAULT_TEMPLATE_ID } from "../../atoms/templates";
 import { useEditor } from "../useEditor";
 import { buildGroupedIds } from "../utils";
 import MoveableLayer from "./MoveableLayer";

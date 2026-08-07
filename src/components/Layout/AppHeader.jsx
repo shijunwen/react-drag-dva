@@ -13,7 +13,7 @@ import {
 } from "@ant-design/icons";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useEditor } from "@/editor/useEditor";
-import { previewModeAtom, setPreviewModeAtom } from "@/atoms";
+import { previewModeAtom, setPreviewModeAtom } from "../../atoms/preview";
 import styles from "./AppHeader.module.less";
 
 const { Header } = Layout;

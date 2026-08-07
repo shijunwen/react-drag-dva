@@ -1,7 +1,7 @@
 import { memo, useRef, useEffect } from "react";
 import Moveable from "react-moveable";
 import { useAtomValue } from "jotai";
-import { viewportAtom } from "@/atoms";
+import { viewportAtom } from "../../atoms/viewport";
 import { GET_SCROLL_POSITION } from "./moveableHelpers";
 
 // 仅保留右/下/右下角手柄(板锚定左上角,从右下方向缩放)

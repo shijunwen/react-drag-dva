@@ -6,7 +6,7 @@ import {
   DeleteOutlined,
 } from "@ant-design/icons";
 import { useEditor } from "@/editor/useEditor";
-import { DEFAULT_TEMPLATE_ID } from "@/atoms";
+import { DEFAULT_TEMPLATE_ID } from "../src/atoms/templates";
 import styles from "./CustomLeftPanel.module.less";
 
 /** 名称编辑:本地草稿,Enter/blur 提交(避免每次按键都记一条历史) */

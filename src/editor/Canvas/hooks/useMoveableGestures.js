@@ -1,41 +1,38 @@
-import { useMemo, useRef, useEffect, useLayoutEffect, useState, useCallback } from "react";
+import { useMemo, useRef } from "react";
 import { flushSync } from "react-dom";
 import { useAtomValue, useSetAtom } from "jotai";
-import {
-  elementsAtom,
-  selectedIdsAtom,
-  selectAtom,
-  updateElementAtom,
-  updateElementsAtom,
-  beginChangeAtom,
-  zoomAtom,
-  viewportAtom,
-  templatesAtom,
-  dropElementAtom,
-  dragOverContainerIdAtom,
-  marqueeActiveAtom,
-  DEFAULT_TEMPLATE_ID,
-} from "@/atoms";
-import { SNAP_THRESHOLD } from "../../constants";
-import { pxToUnit } from "../../utils";
-import { ELEMENT_TYPES } from "../../elements";
+import { elementsAtom } from "../../../atoms/base";
+import { selectedIdsAtom, dragOverContainerIdAtom, marqueeActiveAtom } from "../../../atoms/selection";
+import { zoomAtom, viewportAtom } from "../../../atoms/viewport";
+import { templatesAtom, DEFAULT_TEMPLATE_ID } from "../../../atoms/templates";
+import { dropElementAtom } from "../../../atoms/elements/reorder";
+import { pxToUnit } from "../../../core/utils/unit";
+import { ELEMENT_TYPES } from "../../../core/ElementTypes";
 import {
   round,
   applyToDom,
   lockScrollAncestors,
   unlockScrollAncestors,
   buildRotationTransform,
+  formatSizeLabel,
   SNAP_DIST_FORMAT,
   GET_SCROLL_POSITION,
-  FALLBACK_SIZE,
-  getViewerWrapper,
-  applySizeLabel,
-  formatSizeLabel,
 } from "../moveableHelpers";
 import { findDropContainer, resolveDrop } from "../dropLogic";
+import { useMoveableTargets } from "./useMoveableTargets";
+import { useMoveableSnap } from "./useMoveableSnap";
+import { useMoveableCommit } from "./useMoveableCommit";
+import { useMoveableSizeLabel } from "./useMoveableSizeLabel";
 
 /**
- * react-moveable 手势逻辑层(从 MoveableLayer 抽出)。
+ * react-moveable 手势逻辑层(装配层,从 MoveableLayer 抽出)。
+ * 原单文件拆分为 4 个子 hook,职责边界:
+ * - useMoveableTargets:选中 -> targets / isGroup / 容器归属
+ * - useMoveableSnap:吸附参考线 / 网格 / 吸附阈值 / 模板尺寸换算
+ * - useMoveableCommit:手势生命周期(pin 滚动 / begin 记历史 / commit 提交)
+ * - useMoveableSizeLabel:尺寸标签的定位与刷新
+ * 本文件只负责订阅 atoms、组合子 hook 与手势 handlers,产出 moveableProps。
+ *
  * 性能策略不变:手势过程中只写 DOM(零 React 重渲染),手势结束才一次性提交到 atoms;
  * beginChange 延迟到首次位移。
  *
@@ -49,259 +46,79 @@ export function useMoveableGestures({ elementRefs, moveableRef, viewerRef, canva
   const elements = useAtomValue(elementsAtom);
   const selectedIds = useAtomValue(selectedIdsAtom);
   const templates = useAtomValue(templatesAtom);
-  const updateElement = useSetAtom(updateElementAtom);
-  const updateElements = useSetAtom(updateElementsAtom);
-  const beginChange = useSetAtom(beginChangeAtom);
+  const zoom = useAtomValue(zoomAtom);
+  const marqueeActive = useAtomValue(marqueeActiveAtom);
+  const { scrollLeft, scrollTop } = useAtomValue(viewportAtom);
   const dropElement = useSetAtom(dropElementAtom);
   const setDragOverId = useSetAtom(dragOverContainerIdAtom);
-  const marqueeActive = useAtomValue(marqueeActiveAtom);
-  const zoom = useAtomValue(zoomAtom);
 
-  // id -> element 的 O(1) 索引，替换拖拽/缩放热路径中的 elements.find（每帧多次）
+  // id -> element 的 O(1) 索引,替换拖拽/缩放热路径中的 elements.find(每帧多次)
   const elementsById = useMemo(() => {
     const m = new Map();
     for (const el of elements) m.set(el.id, el);
     return m;
   }, [elements]);
 
-  // templateId -> {width,height} 的 O(1) 索引,供拖拽/缩放按元素所属模板尺寸 clamp/换算
-  const templateSizeMap = useMemo(() => {
-    const m = new Map();
-    for (const t of templates) m.set(t.id, { width: t.width, height: t.height });
-    return m;
-  }, [templates]);
-
-  const sizeFor = useCallback(
-    (el) => templateSizeMap.get(el?.templateId ?? DEFAULT_TEMPLATE_ID) ?? FALLBACK_SIZE,
-    [templateSizeMap],
-  );
-
-  // 所有 ref 声明放在前面
-  const dirtyRef = useRef(false); // 本次手势是否产生过位移（用于延迟记历史）
-  const pendingRef = useRef([]); // 待提交的 patches
+  // 拖拽专用 refs
   const dragCtxRef = useRef(null); // 拖拽上下文：{ mode: "top"|"container", id, parentId? }
   const scrollLockRef = useRef([]); // 拖拽期间锁定的可滚祖先(用于恢复)
-  const dragOverRef = useRef(null); // 当前悬停的容器 id(去重用，避免每帧写 atom 触发重渲染)
-  const scrollListenerRef = useRef(null);
-  const scrollPinnedRef = useRef(false);
-  const pinnedScrollRef = useRef({ left: 0, top: 0 });
+  const dragOverRef = useRef(null); // 当前悬停的容器 id(去重用,避免每帧写 atom 触发重渲染)
 
-  // 固定 InfiniteViewer 包装器的滚动位置（支持多手势并发）
-  const pinViewerScroll = useCallback(() => {
-    if (scrollPinnedRef.current) return;
-    const wrapper = getViewerWrapper(viewerRef?.current);
-    if (!wrapper) return;
-    pinnedScrollRef.current = { left: wrapper.scrollLeft, top: wrapper.scrollTop };
-    const resetScroll = () => {
-      wrapper.scrollLeft = pinnedScrollRef.current.left;
-      wrapper.scrollTop = pinnedScrollRef.current.top;
-    };
-    wrapper.addEventListener("scroll", resetScroll, { passive: false });
-    scrollListenerRef.current = resetScroll;
-    scrollPinnedRef.current = true;
-  }, [viewerRef]);
+  const { targets, isGroup, hasLockedSelected, parentId, firstTemplateId, isInContainer } =
+    useMoveableTargets({ selectedIds, elements, elementRefs });
 
-  const unpinViewerScroll = useCallback(() => {
-    if (!scrollPinnedRef.current) return;
-    const wrapper = getViewerWrapper(viewerRef?.current);
-    if (!wrapper || !scrollListenerRef.current) return;
-    wrapper.removeEventListener("scroll", scrollListenerRef.current);
-    scrollListenerRef.current = null;
-    scrollPinnedRef.current = false;
-  }, [viewerRef]);
+  const {
+    elementGuidelines,
+    rulerGuideElements,
+    snapGridWidth,
+    snapGridHeight,
+    snappable,
+    snapThreshold,
+    sizeFor,
+  } = useMoveableSnap({
+    templates,
+    elements,
+    selectedIds,
+    elementRefs,
+    parentId,
+    firstTemplateId,
+    isInContainer,
+    horizontalGuides,
+    verticalGuides,
+    gridSnapEnabled,
+    gridSnapSize,
+  });
 
-  // 订阅 viewport 滚动变化(非 zoom)来更新控制框位置
-  const { scrollLeft, scrollTop } = useAtomValue(viewportAtom);
+  const { pinViewerScroll, unpinViewerScroll, begin, commitSingle, commitGroup, pendingRef, dirtyRef } =
+    useMoveableCommit({ viewerRef, moveableRef, zoom, elements, scrollLeft, scrollTop });
 
-  // 缩放 / 元素变化 / 滚动位置变化后重算控制框位置
-  useEffect(() => {
-    // 仅在非手势期间更新(手势期间 scroll 被锁定,不需要更新)
-    if (!scrollPinnedRef.current && moveableRef.current) {
-      requestAnimationFrame(() => moveableRef.current.updateRect());
-    }
-  }, [zoom, elements, moveableRef, scrollLeft, scrollTop]);
+  const { updateSelectionLabel } = useMoveableSizeLabel({
+    sizeLabelRef,
+    canvasWrapRef,
+    targets,
+    selectedIds,
+    elementsById,
+    zoom,
+    marqueeActive,
+    elements,
+    scrollLeft,
+    scrollTop,
+  });
 
-  // 选中元素引用
-  const targets = useMemo(
-    () => selectedIds.map((id) => elementRefs.current.get(id)).filter(Boolean),
-    [selectedIds, elementRefs],
-  );
-  const isGroup = targets.length > 1;
-  const hasLockedSelected = selectedIds.some((id) => elementsById.get(id)?.locked);
-  const snapGridWidth = gridSnapEnabled ? gridSnapSize : 0;
-  const snapGridHeight = gridSnapEnabled ? gridSnapSize : 0;
-
-  // undo/redo 后选中元素可能已不存在，过滤无效选中
-  const select = useSetAtom(selectAtom);
-  const hasInvalidSelection = useMemo(
-    () => selectedIds.length > 0 && selectedIds.some((id) => !elementsById.has(id)),
-    [selectedIds, elementsById],
-  );
-  useEffect(() => {
-    if (hasInvalidSelection) {
-      select(selectedIds.filter((id) => elementsById.has(id)));
-    }
-  }, [hasInvalidSelection, selectedIds, elementsById, select]);
-
-  // 判断是否是容器内元素 + 吸附参考线（共用一次 idSet / firstSelected 计算）
-  const idSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-  const firstSelected = useMemo(() => {
-    for (const el of elements) {
-      if (idSet.has(el.id)) return el;
-    }
-    return null;
-  }, [elements, idSet]);
-  const parentId = firstSelected?.parentId ?? null;
-  const firstTemplateId = firstSelected?.templateId ?? DEFAULT_TEMPLATE_ID;
-  const isInContainer = targets.length > 0 && parentId !== null;
-
-  // 吸附参考线:用 elementGuidelines 传入其他元素的 DOM 节点,
-  // moveable 自动读 getBoundingClientRect 算 snap。限定同模板同父级,避免跨板吸附。
-  // 顶层元素额外加入「当前画板」元素:moveable 据其 rect 显示画板边缘+中心吸附线
-  // (checkBetweenRects 只判范围重叠,目标在画板内 -> 不过滤)。画板恒在 DOM,render 期可取。
-  const elementGuidelines = useMemo(
-    () => {
-      const siblings = elements
-        .filter(
-          (el) =>
-            (el.parentId ?? null) === parentId &&
-            (el.templateId ?? DEFAULT_TEMPLATE_ID) === firstTemplateId &&
-            !idSet.has(el.id),
-        )
-        .map((el) => elementRefs.current.get(el.id))
-        .filter(Boolean);
-      if (isInContainer) return siblings;
-      const board = document.querySelector(`[data-template-id="${firstTemplateId}"]`);
-      // 画板开启 center(垂直中线) 和 middle(水平中线),拖拽时可吸附到画板中心并显示距离。
-      return board ? [...siblings, { element: board, center: true, middle: true }] : siblings;
-    },
-    [elements, parentId, firstTemplateId, idSet, elementRefs, isInContainer],
-  );
-
-  // 标尺辅助线吸附标记(Board 在激活画板内按 guides 渲染的 0 尺寸不可见 div)。
-  // 用 useLayoutEffect(提交后查 DOM):guide 变化当帧 render 期标记尚未提交,需 commit 后重查。
-  // 浅比较避免无变化重渲染。{horizontal:true,vertical:false} 限定只产水平线(标记 0 高 -> Y=g);
-  // center:false 免冗余。垂直同理。
-  const [rulerGuideElements, setRulerGuideElements] = useState([]);
-  useLayoutEffect(() => {
-    let next = [];
-    if (!isInContainer) {
-      const board = document.querySelector(`[data-template-id="${firstTemplateId}"]`);
-      if (board) {
-        next = [
-          ...Array.from(
-            board.querySelectorAll('[data-snap-guide="h"]'),
-            (el) => ({ element: el, top: true, bottom: true, left: false, right: false, center: false, middle: false }),
-          ),
-          ...Array.from(
-            board.querySelectorAll('[data-snap-guide="v"]'),
-            (el) => ({ element: el, left: true, right: true, top: false, bottom: false, center: false, middle: false }),
-          ),
-        ];
-      }
-    }
-    // commit 后测 DOM 标记再同步 state:必要的 post-commit ref 测量(CLAUDE.md set-state-in-effect 例外)。
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setRulerGuideElements((prev) =>
-      prev.length === next.length && prev.every((p, i) => p.element === next[i].element)
-        ? prev
-        : next,
-    );
-  }, [isInContainer, firstTemplateId, horizontalGuides, verticalGuides]);
-
-  // 单选均可拖；多选仅顶层（容器内多选仅 resize）
-  const draggable = !hasLockedSelected && !(isGroup && isInContainer);
-  const resizable = !hasLockedSelected;
-  const rotatable = !hasLockedSelected;
-  const snappable = !isInContainer;
-
-  // 容器 id 列表（拖拽命中测试只遍历容器，不扫描全部元素）
+  // 容器 id 列表(拖拽命中测试只遍历容器,不扫描全部元素)
   const containerIds = useMemo(
     () => elements.filter((e) => e.type === ELEMENT_TYPES.CONTAINER).map((e) => e.id),
     [elements],
   );
 
-  // 尺寸标签:隐藏 / 定位到选中框(各选中元素外包矩形并集)上方。
-  // 文本:单选取元素逻辑宽高(保留 unit),多选取屏幕并集 / zoom(贴合可见框)。
-  // textOverride 用于缩放手势中传入实时宽高,避免读 stale 的 elementsById。
-  // 直接写 DOM 的部分收口在 applySizeLabel 内,避免触发 react-hooks/immutability。
-  const hideLabel = useCallback(() => {
-    applySizeLabel(sizeLabelRef.current, null, null, "", false);
-  }, [sizeLabelRef]);
-
-  const updateSelectionLabel = useCallback(
-    (textOverride) => {
-      const label = sizeLabelRef?.current;
-      const wrap = canvasWrapRef?.current;
-      if (!label || !wrap) return;
-      let rect = null;
-      for (const t of targets) {
-        const r = t.getBoundingClientRect();
-        if (!rect) rect = { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
-        else {
-          rect.left = Math.min(rect.left, r.left);
-          rect.top = Math.min(rect.top, r.top);
-          rect.right = Math.max(rect.right, r.right);
-          rect.bottom = Math.max(rect.bottom, r.bottom);
-        }
-      }
-      let screenRect = null;
-      let text = "";
-      if (rect) {
-        screenRect = {
-          left: rect.left,
-          top: rect.top,
-          width: rect.right - rect.left,
-          height: rect.bottom - rect.top,
-        };
-        if (textOverride) {
-          text = textOverride;
-        } else if (targets.length === 1) {
-          const el = elementsById.get(selectedIds[0]);
-          text = el ? formatSizeLabel(el.width, el.height, el.unit || "px") : "";
-        } else {
-          text = `${Math.round(screenRect.width / zoom)}px × ${Math.round(screenRect.height / zoom)}px`;
-        }
-      }
-      applySizeLabel(label, wrap, screenRect, text, !!screenRect);
-    },
-    [targets, selectedIds, elementsById, zoom, sizeLabelRef, canvasWrapRef],
-  );
-
-  // 选中 / 缩放 / 滚动 / 框选态变化时刷新尺寸标签(手势进行中由各 handler 实时刷新)
-  useEffect(() => {
-    if (marqueeActive || !targets.length) {
-      hideLabel();
-      return;
-    }
-    updateSelectionLabel();
-  }, [targets, marqueeActive, zoom, elements, scrollLeft, scrollTop, hideLabel, updateSelectionLabel]);
-
   if (!targets.length) {
     return { targets, isGroup, moveableProps: null };
   }
 
-  // 首次位移时才记录历史，避免空操作产生撤销项
-  const begin = () => {
-    if (!dirtyRef.current) {
-      beginChange();
-      dirtyRef.current = true;
-    }
-  };
-  const commitSingle = () => {
-    if (dirtyRef.current && pendingRef.current.length) {
-      flushSync(() => updateElement(pendingRef.current[0]));
-    }
-    dirtyRef.current = false;
-    pendingRef.current = [];
-  };
-  const commitGroup = () => {
-    if (dirtyRef.current && pendingRef.current.length) {
-      flushSync(() => updateElements(pendingRef.current));
-    }
-    dirtyRef.current = false;
-    pendingRef.current = [];
-  };
+  // 单选均可拖;多选仅顶层(容器内多选仅 resize)
+  const draggable = !hasLockedSelected && !(isGroup && isInContainer);
+  const resizable = !hasLockedSelected;
+  const rotatable = !hasLockedSelected;
 
   const updateDragOver = (target, el) => {
     const tRect = target.getBoundingClientRect();
@@ -334,7 +151,7 @@ export function useMoveableGestures({ elementRefs, moveableRef, viewerRef, canva
     // 余值(如 5px)即高度坍塌。关闭后分组改用基础网格吸附(包围盒按 snapGridSize 对齐),
     // 不再算倍数,坍塌消除;单元素本就不走该分支,不受影响。
     snapGridAll: false,
-    snapThreshold: SNAP_THRESHOLD,
+    snapThreshold,
     elementGuidelines: [...elementGuidelines, ...rulerGuideElements],
     isDisplaySnapDigit: true,
     // 显示拖拽元素与"内部参考线"(如画板边缘,元素被画板包围)之间的距离。

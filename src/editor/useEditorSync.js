@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import { useSetAtom, useStore } from "jotai";
-import { elementsAtom, setElementsAtom, templatesAtom, DEFAULT_TEMPLATE_ID } from "@/atoms";
+import { elementsAtom } from "../atoms/base";
+import { setElementsAtom } from "../atoms/elements/crud";
+import { templatesAtom, DEFAULT_TEMPLATE_ID } from "../atoms/templates";
 
 /** 为历史/受控元素回填 templateId(缺省归到默认模板),保证多模板模型一致 */
 const backfillTemplateId = (elements) =>
