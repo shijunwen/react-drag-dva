@@ -1,8 +1,10 @@
 import { useAtomValue } from "jotai";
 import { useMemo } from "react";
 import { useDroppable } from "@dnd-kit/core";
-import { elementsAtom, selectedIdsAtom, dragOverContainerIdAtom } from "@/atoms";
+import { elementsAtom } from "../../atoms/base";
+import { selectedIdsAtom, dragOverContainerIdAtom } from "../../atoms/selection";
 import { buildGroupedIds } from "../utils";
+import { getChildren } from "../../core/utils/tree";
 import CanvasElement from "./CanvasElement";
 import styles from "./ContainerBox.module.less";
 
@@ -22,11 +24,10 @@ export default function ContainerBox({ el, elementRefs, registerRef }) {
   const highlighted = isOver || dragOverId === el.id;
 
   // 容器内子元素按 z 排序（z 作为流式顺序索引），隐藏元素不渲染
-  const children = useMemo(() => {
-    return allElements
-      .filter((c) => (c.parentId ?? null) === el.id && !c.hidden)
-      .toSorted((a, b) => (a.z || 0) - (b.z || 0));
-  }, [allElements, el.id]);
+  const children = useMemo(
+    () => getChildren(allElements, el.id).filter((c) => !c.hidden),
+    [allElements, el.id],
+  );
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const groupedIds = useMemo(

@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
-import { DEFAULT_TEMPLATE_ID } from "@/atoms";
+import { DEFAULT_TEMPLATE_ID } from "../../../atoms/templates";
 import { ELEMENT_TYPES, PALETTE_ITEM_MAP } from "../../elements";
 
 const TEMPLATE_NODE_PREFIX = "tpl-";

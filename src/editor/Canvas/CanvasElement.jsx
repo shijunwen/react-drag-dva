@@ -1,29 +1,8 @@
 import { memo, useCallback } from "react";
-import { ELEMENT_TYPES, getDef } from "../elements";
+import { renderElementContent } from "../shared/ElementRenderer";
+import { toCss } from "../../core/utils/unit";
 import ContainerBox from "./ContainerBox";
-import ElementErrorBoundary from "../ElementErrorBoundary";
 import styles from "./Canvas.module.less";
-
-/** 渲染元素内部内容:基础类型走注册表 Content,容器特判(ContainerBox) */
-function renderContent(el, elementRefs, registerRef) {
-  if (el.type === ELEMENT_TYPES.CONTAINER) {
-    return (
-      <ElementErrorBoundary resetKey={el.id}>
-        <ContainerBox
-          el={el}
-          elementRefs={elementRefs}
-          registerRef={registerRef}
-        />
-      </ElementErrorBoundary>
-    );
-  }
-  const Content = getDef(el.type)?.Content;
-  return Content ? (
-    <ElementErrorBoundary resetKey={el.id}>
-      <Content el={el} styles={styles} />
-    </ElementErrorBoundary>
-  ) : null;
-}
 
 /**
  * 单个画布元素。memo 化：仅当元素数据或选中态变化时重渲染。
@@ -41,7 +20,7 @@ const CanvasElement = memo(function CanvasElement({
   const unit = el.unit || "px";
   // x/width 统一按 % 渲染（px 时换算），y/height 用 px
   const baseStyle = {
-    width: unit === "%" ? `${el.width}%` : `${el.width}px`,
+    width: toCss(el.width, unit),
     height: `${el.height}px`,
     transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
   };
@@ -51,7 +30,7 @@ const CanvasElement = memo(function CanvasElement({
     ? {
         ...baseStyle,
         position: "absolute",
-        left: unit === "%" ? `${el.x}%` : `${el.x}px`,
+        left: toCss(el.x, unit),
         top: `${el.y}px`,
       }
     : baseStyle;
@@ -66,15 +45,16 @@ const CanvasElement = memo(function CanvasElement({
       data-id={el.id}
       data-in-container={isInContainer ? "true" : "false"}
       data-selected={selected ? "true" : "false"}
-      className={[
-        styles.element,
-        selected ? styles.selected : "",
-        grouped ? styles.grouped : "",
-        isInContainer ? styles.inContainer : "",
-      ].join(" ")}
+      className={`${styles.element}${selected ? ` ${styles.selected}` : ""}${grouped ? ` ${styles.grouped}` : ""}${isInContainer ? ` ${styles.inContainer}` : ""}`}
       style={absoluteStyle}
     >
-      {renderContent(el, elementRefs, registerRef)}
+      {renderElementContent(el, styles, (containerEl) => (
+        <ContainerBox
+          el={containerEl}
+          elementRefs={elementRefs}
+          registerRef={registerRef}
+        />
+      ))}
     </div>
   );
 });

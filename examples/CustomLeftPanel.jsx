@@ -13,7 +13,7 @@ import {
   AimOutlined,
 } from "@ant-design/icons";
 import { useEditor } from "@/editor/useEditor";
-import { DEFAULT_TEMPLATE_ID } from "@/atoms";
+import { DEFAULT_TEMPLATE_ID } from "@/atoms/templates";
 import { ELEMENT_TYPES } from "@/editor/elements";
 import styles from "./CustomLeftPanel.module.less";
 

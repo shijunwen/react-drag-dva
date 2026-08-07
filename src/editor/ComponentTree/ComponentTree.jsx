@@ -1,19 +1,12 @@
 import { useMemo, useCallback } from "react";
 import { Tree, Empty } from "antd";
 import { useAtomValue, useSetAtom } from "jotai";
-import {
-  elementsAtom,
-  selectedIdsAtom,
-  selectAtom,
-  reorderContainerAtom,
-  moveElementToContainerAtom,
-  dropElementAtom,
-  deleteElementsAtom,
-  toggleElementLockAtom,
-  renameElementAtom,
-  templatesAtom,
-  setActiveTemplateAtom,
-} from "@/atoms";
+import { elementsAtom } from "../../atoms/base";
+import { selectedIdsAtom, selectAtom } from "../../atoms/selection";
+import { templatesAtom, setActiveTemplateAtom } from "../../atoms/templates";
+import { deleteElementsAtom } from "../../atoms/elements/crud";
+import { toggleElementLockAtom, renameElementAtom } from "../../atoms/elements/properties";
+import { reorderContainerAtom, moveElementToContainerAtom, dropElementAtom } from "../../atoms/elements/reorder";
 import { ELEMENT_ICONS } from "../elements";
 import { useTreeData } from "./hooks/useTreeData";
 import { useTreeDnd } from "./hooks/useTreeDnd";

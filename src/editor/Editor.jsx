@@ -13,13 +13,18 @@ import Canvas from "./Canvas/Canvas";
 import PropertiesPanel from "./PropertiesPanel/PropertiesPanel";
 import ComponentTree from "./ComponentTree";
 import { Preview } from "./Preview";
-import { useEditor } from "./useEditor";
 import { useEditorSync } from "./useEditorSync";
 import { useEditorShortcuts } from "./useEditorShortcuts";
+import { useElementActions } from "./useElementActions";
+import { useHistoryActions } from "./useHistoryActions";
 import { usePaletteDnd } from "./usePaletteDnd";
 import { PALETTE_ITEM_MAP } from "./elements";
 import { EditorPresenceContext } from "./editorPresence";
-import { zoomAtom, selectedIdsAtom, previewModeAtom, elementsAtom, templatesAtom } from "@/atoms";
+import { elementsAtom } from "../atoms/base";
+import { previewModeAtom } from "../atoms/preview";
+import { selectedIdsAtom } from "../atoms/selection";
+import { templatesAtom } from "../atoms/templates";
+import { zoomAtom } from "../atoms/viewport";
 import styles from "./Editor.module.less";
 
 /**
@@ -102,7 +107,8 @@ const EditorInner = forwardRef(function EditorInner(
   },
   ref,
 ) {
-  const { addElement, deleteSelected, undo, redo, copySelected, paste, duplicateSelected, nudgeSelected } = useEditor();
+  const { addElement, deleteSelected, copySelected, paste, duplicateSelected, nudgeSelected } = useElementActions();
+  const { undo, redo } = useHistoryActions();
   // 受控/非受控同步:外部 value <-> 内部 elementsAtom
   useEditorSync({ value, initialElements, onChange, initialTemplates, onTemplatesChange });
   const store = useStore();

@@ -1,39 +1,20 @@
 import { memo, useMemo } from "react";
 import { useAtomValue } from "jotai";
-import { elementsAtom, templatesAtom, DEFAULT_TEMPLATE_ID } from "@/atoms";
-import { ELEMENT_TYPES, getDef } from "./elements";
-import ElementErrorBoundary from "./ElementErrorBoundary";
+import { elementsAtom } from "../atoms/base";
+import { templatesAtom, DEFAULT_TEMPLATE_ID } from "../atoms/templates";
+import { renderElementContent } from "./shared/ElementRenderer";
+import { getChildren } from "../core/utils/tree";
 import { UNIT } from "./constants";
 import { toCss, toPercent } from "./utils";
 import styles from "./Preview.module.less";
 
 const EMPTY = [];
 
-/** 渲染元素内容(不带 dnd / moveable / 选中态):基础类型走注册表 Content,容器特判(PreviewContainer) */
-function renderContent(el, templateWidth) {
-  if (el.type === ELEMENT_TYPES.CONTAINER) {
-    return (
-      <ElementErrorBoundary resetKey={el.id}>
-        <PreviewContainer el={el} templateWidth={templateWidth} />
-      </ElementErrorBoundary>
-    );
-  }
-  const Content = getDef(el.type)?.Content;
-  return Content ? (
-    <ElementErrorBoundary resetKey={el.id}>
-      <Content el={el} styles={styles} />
-    </ElementErrorBoundary>
-  ) : null;
-}
-
 /** 预览态容器：渲染子元素（流式布局，无排序/拖拽） */
 function PreviewContainer({ el, templateWidth }) {
   const allElements = useAtomValue(elementsAtom);
   const children = useMemo(
-    () =>
-      allElements
-        .filter((c) => (c.parentId ?? null) === el.id && !c.hidden)
-        .toSorted((a, b) => (a.z || 0) - (b.z || 0)),
+    () => getChildren(allElements, el.id).filter((c) => !c.hidden),
     [allElements, el.id]
   );
   return (
@@ -44,7 +25,9 @@ function PreviewContainer({ el, templateWidth }) {
           const wPercent = toPercent(child.width, unit, templateWidth);
           return (
             <div key={child.id} className={styles.childWrapper} style={{ width: `${wPercent}%`, height: `${child.height}px` }}>
-              {renderContent(child, templateWidth)}
+              {renderElementContent(child, styles, (containerEl) => (
+                <PreviewContainer el={containerEl} templateWidth={templateWidth} />
+              ))}
             </div>
           );
         })}
@@ -68,7 +51,9 @@ const PreviewElement = memo(function PreviewElement({ el, templateWidth }) {
         transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
       }}
     >
-      {renderContent(el, templateWidth)}
+      {renderElementContent(el, styles, (containerEl) => (
+        <PreviewContainer el={containerEl} templateWidth={templateWidth} />
+      ))}
     </div>
   );
 });

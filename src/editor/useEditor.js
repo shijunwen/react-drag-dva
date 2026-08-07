@@ -1,102 +1,22 @@
-import { atom, useAtomValue, useSetAtom } from "jotai";
-import {
-  elementsAtom,
-  selectedIdsAtom,
-  selectedElementsAtom,
-  pastAtom,
-  futureAtom,
-  addElementAtom,
-  updateElementAtom,
-  updateElementsAtom,
-  setElementUnitAtom,
-  deleteSelectedAtom,
-  deleteElementsAtom,
-  toggleElementLockAtom,
-  renameElementAtom,
-  copySelectedAtom,
-  pasteAtom,
-  duplicateSelectedAtom,
-  nudgeSelectedAtom,
-  selectAtom,
-  toggleSelectAtom,
-  clearSelectionAtom,
-  groupSelectedAtom,
-  ungroupSelectedAtom,
-  alignSelectedAtom,
-  undoAtom,
-  redoAtom,
-  clearCanvasAtom,
-  beginChangeAtom,
-  reorderZAtom,
-  templatesAtom,
-  activeTemplateIdAtom,
-  templateColumnsAtom,
-  addTemplateAtom,
-  duplicateTemplateAtom,
-  deleteTemplateAtom,
-  renameTemplateAtom,
-  setTemplateSizeAtom,
-  setActiveTemplateAtom,
-  setTemplateColumnsAtom,
-} from "@/atoms";
-
-// 派生为布尔值:撤销栈变化但布尔值未翻转时,jotai 不通知订阅者,
-// 避免所有 useEditor 消费者随每次 beginChange(每手势一次)无谓重渲染。
-const canUndoAtom = atom((get) => get(pastAtom).length > 0);
-const canRedoAtom = atom((get) => get(futureAtom).length > 0);
+import { useEditorState } from "./useEditorState";
+import { useElementActions } from "./useElementActions";
+import { useSelectionActions } from "./useSelectionActions";
+import { useTemplateActions } from "./useTemplateActions";
+import { useHistoryActions } from "./useHistoryActions";
 
 /**
- * 编辑器统一 action 入口。
- * 用 useSetAtom 绑定 write atom，内部通过 get 读取最新状态，避免手势回调闭包陈旧。
+ * 编辑器统一 action 入口（向后兼容）。
+ * 返回只读状态 + 全部 actions。
+ *
+ * 如需更细粒度订阅，请直接使用子 hook：
+ *   useEditorState / useElementActions / useSelectionActions / useTemplateActions / useHistoryActions
  */
 export function useEditor() {
-  const elements = useAtomValue(elementsAtom);
-  const selectedIds = useAtomValue(selectedIdsAtom);
-  const selectedElements = useAtomValue(selectedElementsAtom);
-  const canUndo = useAtomValue(canUndoAtom);
-  const canRedo = useAtomValue(canRedoAtom);
-  const templates = useAtomValue(templatesAtom);
-  const activeTemplateId = useAtomValue(activeTemplateIdAtom);
-  const templateColumns = useAtomValue(templateColumnsAtom);
-
   return {
-    elements,
-    selectedIds,
-    selectedElements,
-    canUndo,
-    canRedo,
-    templates,
-    activeTemplateId,
-    templateColumns,
-    addElement: useSetAtom(addElementAtom),
-    updateElement: useSetAtom(updateElementAtom),
-    updateElements: useSetAtom(updateElementsAtom),
-    setElementUnit: useSetAtom(setElementUnitAtom),
-    beginChange: useSetAtom(beginChangeAtom),
-    deleteSelected: useSetAtom(deleteSelectedAtom),
-    deleteElements: useSetAtom(deleteElementsAtom),
-    toggleElementLock: useSetAtom(toggleElementLockAtom),
-    renameElement: useSetAtom(renameElementAtom),
-    copySelected: useSetAtom(copySelectedAtom),
-    paste: useSetAtom(pasteAtom),
-    duplicateSelected: useSetAtom(duplicateSelectedAtom),
-    nudgeSelected: useSetAtom(nudgeSelectedAtom),
-    select: useSetAtom(selectAtom),
-    toggleSelect: useSetAtom(toggleSelectAtom),
-    clearSelection: useSetAtom(clearSelectionAtom),
-    groupSelected: useSetAtom(groupSelectedAtom),
-    ungroupSelected: useSetAtom(ungroupSelectedAtom),
-    alignSelected: useSetAtom(alignSelectedAtom),
-    undo: useSetAtom(undoAtom),
-    redo: useSetAtom(redoAtom),
-    clearCanvas: useSetAtom(clearCanvasAtom),
-    reorderZ: useSetAtom(reorderZAtom),
-    addTemplate: useSetAtom(addTemplateAtom),
-    duplicateTemplate: useSetAtom(duplicateTemplateAtom),
-    deleteTemplate: useSetAtom(deleteTemplateAtom),
-    renameTemplate: useSetAtom(renameTemplateAtom),
-    setTemplateSize: useSetAtom(setTemplateSizeAtom),
-    setActiveTemplate: useSetAtom(setActiveTemplateAtom),
-    setTemplateColumns: useSetAtom(setTemplateColumnsAtom),
+    ...useEditorState(),
+    ...useElementActions(),
+    ...useSelectionActions(),
+    ...useTemplateActions(),
+    ...useHistoryActions(),
   };
 }

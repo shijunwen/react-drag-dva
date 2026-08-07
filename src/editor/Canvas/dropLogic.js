@@ -3,7 +3,7 @@
  * 与 Editor.jsx 的 pickInnermostDroppable 一致:取面积最小(最内层)命中。
  */
 import { rectOverlapArea, findFlowInsertIndex, findSmallestHit } from "../utils";
-import { DEFAULT_TEMPLATE_ID } from "@/atoms";
+import { DEFAULT_TEMPLATE_ID } from "../../atoms/templates";
 
 /**
  * 找与给定 rect 重叠的最内层容器(面积最小命中)。

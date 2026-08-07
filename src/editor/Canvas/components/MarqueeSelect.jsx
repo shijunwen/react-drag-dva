@@ -1,14 +1,9 @@
 import { memo, useCallback, useState, useEffect } from "react";
 import Selecto from "react-selecto";
 import { useStore, useSetAtom } from "jotai";
-import {
-  elementsAtom,
-  selectedIdsAtom,
-  activeTemplateIdAtom,
-  selectAtom,
-  marqueeActiveAtom,
-  DEFAULT_TEMPLATE_ID,
-} from "@/atoms";
+import { elementsAtom } from "../../../atoms/base";
+import { selectedIdsAtom, selectAtom, marqueeActiveAtom } from "../../../atoms/selection";
+import { activeTemplateIdAtom, DEFAULT_TEMPLATE_ID } from "../../../atoms/templates";
 import { applySizeLabel } from "../moveableHelpers";
 import { excludeDescendantsOfSelected } from "../../utils";
 import styles from "../Canvas.module.less";

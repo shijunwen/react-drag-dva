@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
-import { setViewportAtom, setZoomAtom, zoomAtom } from "@/atoms";
+import { setViewportAtom, setZoomAtom, zoomAtom } from "../../../atoms/viewport";
 import { MIN_ZOOM, MAX_ZOOM, ZOOM_STEP } from "../../constants";
 import { FIT_PADDING } from "../canvasConstants";
 import { getViewerWrapper } from "../moveableHelpers";

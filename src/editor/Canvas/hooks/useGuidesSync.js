@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
-import { viewportAtom, zoomAtom } from "@/atoms";
+import { viewportAtom, zoomAtom } from "../../../atoms/viewport";
 import { GUIDES_OFFSET } from "../canvasConstants";
 
 /**
