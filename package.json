@@ -1,6 +1,6 @@
 {
   "name": "react-drag-dva",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "可视化拖拽编辑器组件库:拖入组件、移动/缩放/分组,支持受控模式与自定义元素类型。",
   "license": "MIT",
